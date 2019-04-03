@@ -1,14 +1,8 @@
-[![pipeline status](https://gitlab.com/b1g_J/tandon.singles/badges/master/pipeline.svg)](https://gitlab.com/b1g_J/tandon.singles/commits/master)
+å
+# BSQL
 
-# tandon.singles
-
-A proud [flasq](https://gitlab.com/b1g_J/flasq) app.
-
-# ORM
-
-This project didn't seem particularly interesting, so I implemented my own custom ORM to make it more Spicy. 
-It features dynamic model creation, with on the fly relationship detection and resolution. 
-It uses an SQL query generator engine that I also implemented for this project.
+BSQL features dynamic model creation, with on the fly relationship detection and resolution. 
+It uses a high level custom sql query generator in its backend.
 
 ### Static generation
 To use the static models with bsql, all you need to do define your models same as other ORMs:
@@ -46,11 +40,11 @@ new_test.delete()
 #### Models
 The really cool thing this ORM does is dynamic model generation. 
 If you already have a database with tables defined, you can 
-just query existing tables, and jsql will generate models for you.
+just query existing tables, and bsql will generate models for you.
 
 #### Relationships
 If you have a definded foreign key relationship with another table 
-already defined, you don't need to tell jsql about them. For an object 
+already defined, you don't need to tell bsql about them. For an object 
 with foreign models, you can just access it as a attribute, and it will 
 hand you a list of all objects (either dynamically or statically generated)
 associated with the object. 
@@ -77,11 +71,11 @@ CREATE TABLE Photo
 );
 """
 
-import jsql
+import bsql
 
-admin = jsql.query.new(username='admin')
+admin = bsql.query.new(username='admin')
 # new_photo will be a dynamically generated model object
-new_photo = jsql.query('Photo').new(photoOwner='admin')
+new_photo = bsql.query('Photo').new(photoOwner='admin')
 
 # the relationship will be detected between Photo and Person, 
 # so you can access either .photo or .photos on a Person object
@@ -94,16 +88,16 @@ admins_photos = admin.photos
 The query engine is quite simple and easy to use. It sports the fluent influence style for readability. 
 
 ```python
-import jsql
+import bsql
 
 # admin will be a dynamically generated model object
-admin = jsql.Sql.SELECTFROM('Person').WHERE(username='admin').first()
+admin = bsql.Sql.SELECTFROM('Person').WHERE(username='admin').first()
 
 # new_user will be a dynamically generated model object
-new_user = jsql.Sql.INSERT(username='new_user').INTO('Person').do()
+new_user = bsql.Sql.INSERT(username='new_user').INTO('Person').do()
 
 # to get the raw sql being generated for a query
-raw_sql, args = jsql.Sql.SELECTFROM('Photo').JOIN('Person').WHERE(username='admin').gen()
+raw_sql, args = bsql.Sql.SELECTFROM('Photo').JOIN('Person').WHERE(username='admin').gen()
 
 ```
 
