@@ -2,7 +2,7 @@ from . import Query
 from . import Sql
 from . import types
 from . import utils
-from . import bsql
+from . import bigsql
 
 
 class BaseModel(object):
@@ -199,8 +199,8 @@ class BaseModel(object):
                 for column in columns
             )
         )
-        if bsql.config['VERBOSE_SQL_GENERATION']:
-            bsql.logging.warning('Generated: {}'.format(sql))
+        if bigsql.config['VERBOSE_SQL_GENERATION']:
+            bigsql.logging.warning('Generated: {}'.format(sql))
         return sql
 
     @property

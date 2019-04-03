@@ -6,7 +6,7 @@ from scanf import scanf
 from . import BaseModel
 from . import Cache
 from . import types
-from . import bsql
+from . import bigsql
 
 
 class Table:
@@ -137,7 +137,7 @@ class JoinedTable(Table):
         return self._gen()
 
 
-__cache_enabled__ = bsql.config['SQL_CACHE_ENABLED']
+__cache_enabled__ = bigsql.config['SQL_CACHE_ENABLED']
 
 
 class Sql:
@@ -160,8 +160,8 @@ class Sql:
     __cache__   : dict
     """
 
-    __verbose_generation__ = bsql.config['VERBOSE_SQL_GENERATION']
-    __verbose_execution__ = bsql.config['VERBOSE_SQL_EXECUTION']
+    __verbose_generation__ = bigsql.config['VERBOSE_SQL_GENERATION']
+    __verbose_execution__ = bigsql.config['VERBOSE_SQL_EXECUTION']
     __sep__ = ' '
 
     __cache__ = {
@@ -518,7 +518,7 @@ class Sql:
             )
         if Sql.__verbose_execution__:
             msg = 'Executing: {} {}'.format(sql, args)
-            bsql.logging.info(msg)
+            bigsql.logging.info(msg)
 
         return sql, args
 
@@ -592,7 +592,7 @@ class Sql:
 
             if self.__verbose_generation__:
                 msg = 'Generated: {} {}'.format(*self._sql)
-                bsql.logging.info(msg)
+                bigsql.logging.info(msg)
         return self._sql
 
     def append_raw(self, sql, args=None):
@@ -660,14 +660,14 @@ class Sql:
             if result is not None:
                 if Sql.__verbose_execution__:
                     msg = 'Using Cache for: {}'.format(self._sql)
-                    bsql.logging.info(msg)
+                    bigsql.logging.info(msg)
                 return result
 
         if Sql.__verbose_execution__:
             msg = 'Executing: {} {}'.format(*self._sql)
-            bsql.logging.info(msg)
+            bigsql.logging.info(msg)
 
-        with bsql.db.connect() as cursor:
+        with bigsql.db.connect() as cursor:
             cursor.execute(*self._sql)
             result = list()
             if self._type in ('SELECT', 'INSERT'):
@@ -676,7 +676,7 @@ class Sql:
                     sql = self._generate_insert_select()
                     if Sql.__verbose_execution__:
                         msg = 'Executing: {} {}'.format(*sql)
-                        bsql.logging.info(msg)
+                        bigsql.logging.info(msg)
                     cursor.execute(sql)
 
                 result = self._generate_models(*cursor.fetchall())
@@ -708,12 +708,12 @@ class Sql:
             if result is not None:
                 if Sql.__verbose_execution__:
                     msg = 'Using Cache for: {} {}'.format(sql, args)
-                    bsql.logging.info(msg)
+                    bigsql.logging.info(msg)
                 return result
         if Sql.__verbose_execution__:
             msg = 'Executing: {} {}'.format(sql, args)
-            bsql.logging.info(msg)
-        with bsql.db.connect() as cursor:
+            bigsql.logging.info(msg)
+        with bigsql.db.connect() as cursor:
             cursor.execute(sql, args)
             result = cursor.fetchall()
             Sql.__cache__['queries'][
