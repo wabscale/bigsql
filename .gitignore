@@ -1,0 +1,4 @@
+
+venv
+__pymysql__
+*.pyc
