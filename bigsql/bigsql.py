@@ -1,5 +1,5 @@
 from . import Query
-from . import BaseModel
+from . import models
 from . import Sql
 from flaskext.mysql import MySQL
 
@@ -51,10 +51,10 @@ class big_SQL:
         Generates all create table sql, then runs it for
         all models defined as subclasses of BaseModel.
         """
-        for model_type in BaseModel.BaseModel.__subclasses__():
-            if model_type == BaseModel.BaseModel.TempModel:
+        for model_type in models.BaseModel.__subclasses__():
+            if model_type == models.BaseModel.TempModel:
                 continue
-            raw = BaseModel.__gen_sql__(model_type)
+            raw = models.BaseModel.__gen_sql__(model_type)
             if raw is not None:
                 Sql.Sql.execute_raw(
                     raw

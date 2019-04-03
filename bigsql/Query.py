@@ -1,4 +1,3 @@
-from . import BaseModel
 from . import Sql
 
 

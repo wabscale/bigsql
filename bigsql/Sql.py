@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 from scanf import scanf
 
-from . import BaseModel
+from . import models
 from . import Cache
 from . import types
 from . import bigsql
@@ -545,11 +545,11 @@ class Sql:
         :param table_name: name of table to be resolved
         :return: subclass of BaseModel or None
         """
-        models = BaseModel.BaseModel.__subclasses__()
+        models = models.BaseModel.__subclasses__()
         for model in models:
             if model.__name__ == table_name:
                 return model
-        return BaseModel.TempModel
+        return models.TempModel
 
     @property
     def extra_raw(self):
@@ -624,7 +624,7 @@ class Sql:
         self._result = [
             Model(**kwargs)
             for kwargs in model_init_kwargs
-        ] if Model is not BaseModel.TempModel else [
+        ] if Model is not models.TempModel else [
             Model(self._table.name, **kwargs)
             for kwargs in model_init_kwargs
         ]
