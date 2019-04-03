@@ -30,7 +30,7 @@ class DefaultConfig:
         return getattr(self, item) if item in self.__class__.__dict__ else None
 
 
-class BSQL:
+class big_SQL:
     query=Query
 
     def __init__(self, app):

@@ -3,7 +3,7 @@ from .BaseModel import BaseModel, TempModel
 from .utils import strptime, classproperty
 from .Sql import Sql, Table, JoinedTable
 from .Query import Query
-from .bigsql import BSQL
+from .bigsql import big_SQL
 
 if __name__ == "__main__":
     class Test(BaseModel):
