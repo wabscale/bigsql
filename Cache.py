@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from ..app import app
+from . import bsql
 
 
 @dataclass
@@ -14,7 +14,7 @@ class CachedQuery:
 
     @property
     def valid(self):
-        timeout = app.config['SQL_CACHE_TIMEOUT']
+        timeout = bsql.config['SQL_CACHE_TIMEOUT']
         return datetime.now() - self.timestamp < timedelta(seconds=timeout)
 
 
