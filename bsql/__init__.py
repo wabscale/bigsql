@@ -1,9 +1,9 @@
-from web.bsql.BaseModel import BaseModel, TempModel
-from web.bsql.Query import Query
-from web.bsql.Sql import Sql, Table, JoinedTable
-from web.bsql.types import Column, Integer, Text, Varchar, DateTime
-from web.bsql.utils import strptime, classproperty
-from web.bsql.bsql import BSQL
+from .types import Column, Integer, Text, Varchar, DateTime
+from .BaseModel import BaseModel, TempModel
+from .utils import strptime, classproperty
+from .Sql import Sql, Table, JoinedTable
+from .Query import Query
+from .bsql import BSQL
 
 if __name__ == "__main__":
     class Test(BaseModel):
