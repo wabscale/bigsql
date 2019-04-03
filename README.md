@@ -7,17 +7,25 @@ It uses a high level custom sql query generator in its backend.
 ### Static generation
 To use the static models with bsql, all you need to do define your models same as other ORMs:
 ```python
-import bsql
+from flask import Flask
+
+from bsql import big_SQL
+from bsql.types import Integer, Varchar, DateTime
+from bsql.models import BaseModel
+
+app=Flask(__name__)
+db=big_SQL(app)
+
 
 # lets define a Test model
-class Test(bsql.BaseModel):
-    id = bsql.Column(bsql.Integer, primary_key=True)
-    a_string = bsql.Column(bsql.Varchar(128), references='AnotherTable.column_name')
-    date = bsql.Column(bsql.DateTime)
+class Test(BaseModel):
+    id = Column(Integer, primary_key=True)
+    a_string = Column(Varchar(128), references='AnotherTable.column_name')
+    date = Column(DateTime)
 
 
 # creates all models in database
-bsql.create_all()
+db.create_all()
 
 
 # creates a new Test object
@@ -71,7 +79,7 @@ CREATE TABLE Photo
 );
 """
 
-import bsql
+from bsql import big_SQL as bsql
 
 admin = bsql.query.new(username='admin')
 # new_photo will be a dynamically generated model object
@@ -88,16 +96,16 @@ admins_photos = admin.photos
 The query engine is quite simple and easy to use. It sports the fluent influence style for readability. 
 
 ```python
-import bsql
+from bsql.Sql import Sql
 
 # admin will be a dynamically generated model object
-admin = bsql.Sql.SELECTFROM('Person').WHERE(username='admin').first()
+admin = Sql.SELECTFROM('Person').WHERE(username='admin').first()
 
 # new_user will be a dynamically generated model object
-new_user = bsql.Sql.INSERT(username='new_user').INTO('Person').do()
+new_user = Sql.INSERT(username='new_user').INTO('Person').do()
 
 # to get the raw sql being generated for a query
-raw_sql, args = bsql.Sql.SELECTFROM('Photo').JOIN('Person').WHERE(username='admin').gen()
+raw_sql, args = Sql.SELECTFROM('Photo').JOIN('Person').WHERE(username='admin').gen()
 
 ```
 
