@@ -1,15 +1,18 @@
 from . import Query
 from . import models
 from . import Sql
+from . import session
 from flaskext.mysql import MySQL
 
 import logging
 import os
 
+
 logging.basicConfig(
     format='%(message)s',
     level='DEBUG'
 )
+
 
 class DefaultConfig:
     MYSQL_DATABASE_USER = 'root'
@@ -34,10 +37,12 @@ class big_SQL:
     query=Query
 
     def __init__(self, app):
+        global db
+
         for i in app.config:
             config[i] = app.config[i]
-        global db
         db = MySQL(app)
+        self.session=session.Session()
 
         if config['LOG_DIR'] is not None:
             logging.basicConfig(filename=os.path.join(
@@ -59,6 +64,7 @@ class big_SQL:
                 Sql.Sql.execute_raw(
                     raw
                 )
+
 
 config=DefaultConfig()
 db=None

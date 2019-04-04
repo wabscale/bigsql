@@ -13,7 +13,7 @@ class BaseModel(object):
     """
     __column_info__: list = None
     __relationships__: dict = None
-    primary_keys: list = None
+    __primary_keys__: list = None
 
     class ModelError(Exception):
         pass
@@ -73,13 +73,12 @@ class BaseModel(object):
             col.name: col
             for col in self.__column_info__
         }
-
-        self.primary_keys = list(filter(
+        self.__primary_keys__ = list(filter(
             lambda column: column.primary_key,
             self.__column_info__
         ))
 
-        self._set_state(**kwargs)
+        self.__set_model_state__(**kwargs)
 
     def __str__(self):
         return '<{}Model: {}>'.format(
@@ -106,7 +105,6 @@ class BaseModel(object):
         """
         if item == '__name__':  # boy this is a messy fix
             return self.__class__.__name__
-            # return super(BaseModel, self).__getattribute__(item)
         if self.__lower_relationships__ is not None:
             if item in self.__lower_relationships__:
                 self.__dict__[item] = self.Relationship(
@@ -122,38 +120,7 @@ class BaseModel(object):
                 return self.__dict__[item]
         return super(BaseModel, self).__getattribute__(item)
 
-    def update(self):
-        """
-        generate and execute sql to update object in db
-
-        ** This will rely on primary keys to update the object. If
-        primary keys are modified, this will likely crash.
-
-        :return:
-        """
-        Sql.Sql.UPDATE(self.__name__).SET(**{
-            col.name: self.__getattr__(col.name)
-            for col in self.__column_info__
-            if not col.primary_key
-        }).WHERE(**{
-            col.name: self.__getattr__(col.name)
-            for col in self.__column_info__
-            if col.primary_key
-        }).do()
-
-    def delete(self):
-        """
-        delete object from database
-
-        :return:
-        """
-        Sql.Sql.DELETE(self.__name__).WHERE(**{
-            col.name: self.__getattr__(col.name)
-            for col in self.__column_info__
-            if col.primary_key
-        }).do()
-
-    def _generate_relationships(self):
+    def __generate_relationships__(self):
         """
         :return:
         """
@@ -163,7 +130,7 @@ class BaseModel(object):
                 self.Relationship(self, table_name)
             )
 
-    def __set_column_value(self, column_name, value):
+    def __set_column_value__(self, column_name, value):
         col = self.__column_lot__[column_name]
         if value is not None:
             if col.data_type == 'timestamp' and type(value) == str:
@@ -172,11 +139,11 @@ class BaseModel(object):
                 value = int(value)
         self.__setattr__(col.name, value)
 
-    def _set_state(self, **kwargs):
+    def __set_model_state__(self, **kwargs):
         for col in self.__column_info__:
-            self.__set_column_value(col.name, None)
+            self.__set_column_value__(col.name, None)
         for col, val in kwargs.items():
-            self.__set_column_value(col, val)
+            self.__set_column_value__(col, val)
 
     @staticmethod
     def __gen_sql__(class_type):
@@ -218,6 +185,39 @@ class BaseModel(object):
     @utils.classproperty
     def query(cls):
         return Query.Query(cls)
+
+    @property
+    def __update_sql__(self):
+        """
+        generate and execute sql to update object in db
+
+        ** This will rely on primary keys to update the object. If
+        primary keys are modified, this will likely crash.
+
+        :return:
+        """
+        return Sql.Sql.UPDATE(self.__name__).SET(**{
+            col.name: self.__getattr__(col.name)
+            for col in self.__column_info__
+            if not col.primary_key
+        }).WHERE(**{
+            col.name: self.__getattr__(col.name)
+            for col in self.__column_info__
+            if col.primary_key
+        }).gen()
+
+    @property
+    def __delete_sql__(self):
+        """
+        delete object from database
+
+        :return:
+        """
+        return Sql.Sql.DELETE(self.__name__).WHERE(**{
+            col.name: self.__getattr__(col.name)
+            for col in self.__column_info__
+            if col.primary_key
+        }).gen()
 
 
 class TempModel(BaseModel):

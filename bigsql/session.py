@@ -9,13 +9,26 @@ class Connection(object):
     def __init__(self, name):
         self.name = name
         self.conn = pymysql.connect(
-            host=config.MYSQL_DATABASE_HOST,
-            password=config.MYSQL_DATABASE_PASSWORD,
-            user=config.MYSQL_DATABASE_USER,
+            host=bigsql.config.MYSQL_DATABASE_HOST,
+            password=bigsql.config.MYSQL_DATABASE_PASSWORD,
+            user=bigsql.config.MYSQL_DATABASE_USER,
             charset="utf8mb4",
             cursorclass=pymysql.cursors.Cursor,
         )
         self.cursor = self.conn.cursor()
+
+    def start_transaction(self):
+        """
+        starts transaction
+        """
+        self.cursor.execute('START TRANSACTION;')
+
+    def commit_transaction(self):
+        """
+        commit transaction
+        :return:
+        """
+        self.cursor.execute('COMMIT;')
 
     def execute(self, query):
         self.cursor.execute(query)
@@ -39,12 +52,12 @@ class Session:
     self.raw_conn : connection for handing raw execution
     """
     def __init__(self):
-        self.mod_conn = Connection()
-        self.add_conn = Connection()
-        self.raw_conn = Connection()
+        self.mod_conn = Connection('mod')
+        self.add_conn = Connection('add')
+        self.raw_conn = Connection('raw')
 
-        self.mod_conn.execute("START TRANSACTION;")
-        self.add_conn.execute("START TRANSACTION;")
+        self.mod_conn.start_transaction()
+        self.add_conn.start_transaction()
 
     def add(self, obj):
         pass
