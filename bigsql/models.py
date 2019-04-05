@@ -5,7 +5,7 @@ from . import utils
 from . import bigsql
 
 
-class BaseModel(object):
+class DynamicModel(object):
     """
     All subclasses just need to define their own __name__
     to be the name of the table (along with any other convince
@@ -79,6 +79,7 @@ class BaseModel(object):
         ))
 
         self.__set_model_state__(**kwargs)
+        self.__original_state__=kwargs
 
     def __str__(self):
         return '<{}Model: {}>'.format(
@@ -118,7 +119,14 @@ class BaseModel(object):
                     item[0].upper() + item[1:-1]
                 )
                 return self.__dict__[item]
-        return super(BaseModel, self).__getattribute__(item)
+        return super(DynamicModel, self).__getattribute__(item)
+
+    @property
+    def __modified__(self):
+        return any(
+            getattr(self, key) != self.__original_state__[key]
+            for key in self.__original_state__
+        )
 
     def __generate_relationships__(self):
         """
@@ -146,15 +154,30 @@ class BaseModel(object):
             self.__set_column_value__(col, val)
 
     @staticmethod
-    def __gen_sql__(class_type):
+    def __table_sql__(class_type):
         columns = [
             value.set_name(item, class_type.__name__)
             for item, value in class_type.__dict__.items()
             if isinstance(value, types.Column)
         ]
+        primary_sql='\n    PRIMARY KEY ({}),'.format(', '.join(map(
+            lambda col: col.column_name,
+            filter(
+                lambda col: col.primary_key,
+                columns
+            )
+        )))
+        unique_cols=list(filter(
+            lambda col: col.unique,
+            columns
+        ))
+        uniqs='\n    UNIQUE ({}),'.format(', '.join(map(
+            lambda col: col.column_name,
+            unique_cols
+        ))) if len(unique_cols) != 0 else ''
         if len(columns) == 0:
             return None
-        base = 'CREATE TABLE IF NOT EXISTS {table_name} (\n{columns}{refs}\n);'
+        base = 'CREATE TABLE IF NOT EXISTS {table_name} (\n{columns}{primarys}{refs}{uniqs}\n);'
         sql = base.format(
             table_name=class_type.__name__,
             columns=',\n'.join(
@@ -164,27 +187,57 @@ class BaseModel(object):
             refs=',\n' + ',\n'.join(
                 ' ' * 4 + column.ref_sql
                 for column in columns
-            )
+            ),
+            primarys=primary_sql,
+            uniqs=uniqs,
         )
         if bigsql.config['VERBOSE_SQL_GENERATION']:
             bigsql.logging.warning('Generated: {}'.format(sql))
         return sql
 
-    @property
-    def __defined_columns__(self):
-        return [
-            value.set_name(item)
-            for item, value in self.__class__.__dict__.items()
-            if isinstance(value, types.Column)
-        ]
-
-    @property
-    def __dynamically_generated__(self):
-        return len(self.__defined_columns__) > 0
-
     @utils.classproperty
     def query(cls):
         return Query.Query(cls)
+
+    @property
+    def __current_state__(self):
+        return {
+            col.column_name: getattr(self, col.column_name)
+            for col in self.__defined_columns__
+        }
+
+    @property
+    def __insert_update__(self):
+        return Sql.INSERT(
+            **self.__current_state__
+        ).INTO(
+            self.__class__.__name__
+        ).ONDUPUPDATE().gen()
+
+    @property
+    def __defined_columns__(self):
+        yield from (
+            value.set_name(item)
+            for item, value in self.__class__.__dict__.items()
+            if isinstance(value, types.Column)
+        )
+
+    @property
+    def __dynamically_generated__(self):
+        return len(list(self.__defined_columns__)) > 0
+
+    @property
+    def __insert_sql__(self):
+        """
+        Generates sql necessary for initializing element in database.
+
+        :return: sql, args
+        """
+        return Sql.INSERT(
+            **self.__current_state__
+        ).INTO(
+            self.__class__.__name__
+        ).gen()
 
     @property
     def __update_sql__(self):
@@ -220,7 +273,7 @@ class BaseModel(object):
         }).gen()
 
 
-class TempModel(BaseModel):
+class TempModel(DynamicModel):
     """
     A temporary model
     """

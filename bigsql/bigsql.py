@@ -15,10 +15,10 @@ logging.basicConfig(
 
 
 class DefaultConfig:
-    MYSQL_DATABASE_USER = 'root'
-    MYSQL_DATABASE_PASSWORD = 'password'
-    MYSQL_DATABASE_HOST = 'db'
-    MYSQL_DATABASE_DB = 'TS'
+    BIGSQL_USER = 'root'
+    BIGSQL_PASSWORD = 'password'
+    BIGSQL_HOST = '127.0.0.1'
+    BIGSQL_DB = 'TS'
 
     VERBOSE_SQL_GENERATION = False
     VERBOSE_SQL_EXECUTION = True
@@ -26,25 +26,28 @@ class DefaultConfig:
     SQL_CACHE_TIMEOUT = 5
     SQL_CACHE_ENABLED = True
 
-    def __setitem__(self, key, value):
-        setattr(self, key, value)
-
-    def __getitem__(self, item):
-        return getattr(self, item) if item in self.__class__.__dict__ else None
+    def __iter__(self):
+        yield from filter(
+            lambda x: x.upper() == x,
+            self.__class__.__dict__
+        )
 
 
 class big_SQL:
-    query=Query
-
-    def __init__(self, app):
-        global db
-
-        for i in app.config:
-            config[i] = app.config[i]
-        db = MySQL(app)
+    def __init__(self, **kwargs):
+        global config
+        config={
+            item: kwargs[item] if item in kwargs else getattr(DefaultConfig, item)
+            for item in DefaultConfig()
+        }
         self.session=session.Session()
+        Query.session=self.session
+        Sql.Sql.session=self.session
 
-        if config['LOG_DIR'] is not None:
+        self.query=Query.Query
+        self.sql=Sql.Sql
+
+        if 'LOG_DIR' in config:
             logging.basicConfig(filename=os.path.join(
                 config['LOG_DIR'],
                 'orm_log.log'
@@ -56,15 +59,14 @@ class big_SQL:
         Generates all create table sql, then runs it for
         all models defined as subclasses of BaseModel.
         """
-        for model_type in models.BaseModel.__subclasses__():
-            if model_type == models.BaseModel.TempModel:
+        for model_type in models.DynamicModel.__subclasses__():
+            if model_type == models.DynamicModel.TempModel:
                 continue
-            raw = models.BaseModel.__gen_sql__(model_type)
+            raw = models.DynamicModel.__table_sql__(model_type)
             if raw is not None:
                 Sql.Sql.execute_raw(
                     raw
                 )
 
 
-config=DefaultConfig()
-db=None
+config=None

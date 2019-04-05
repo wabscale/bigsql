@@ -2,6 +2,7 @@ from . import Sql
 
 
 class Query(object):
+    session=None
     def __init__(self, table_name):
         self.table_name = table_name if isinstance(table_name, str) else table_name.__name__
 

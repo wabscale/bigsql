@@ -4,7 +4,6 @@ from dataclasses import dataclass
 from scanf import scanf
 
 from . import models
-from . import Cache
 from . import types
 from . import bigsql
 
@@ -40,7 +39,7 @@ class Table:
         """
         return [
             types.StaticColumn(self.name, *r)
-            for r in Sql.execute_raw(
+            for r in Sql.session.execute_raw(
                 self.column_info_sql,
                 (self.name,)
             )
@@ -52,7 +51,7 @@ class Table:
         """
         return list(map(
             lambda row: row[0],
-            Sql.execute_raw(
+            Sql.session.execute_raw(
                 self.relationship_info_sql,
                 (self.name,)
             )
@@ -137,9 +136,6 @@ class JoinedTable(Table):
         return self._gen()
 
 
-__cache_enabled__ = bigsql.config['SQL_CACHE_ENABLED']
-
-
 class Sql:
     """
     _type    : type of expression (select, insert, ...)
@@ -156,18 +152,15 @@ class Sql:
     _where: list of conditions to be applied
     _attrs: names of accessable attributes (foreign and local)
 
-    __verbose_generation__ : bool
+    bigsql.config['VERBOSE_SQL_GENERATION'] : bool
     __cache__   : dict
     """
-
-    __verbose_generation__ = bigsql.config['VERBOSE_SQL_GENERATION']
-    __verbose_execution__ = bigsql.config['VERBOSE_SQL_EXECUTION']
     __sep__ = ' '
 
     __cache__ = {
         'tables': {},
-        'queries': Cache.QueryCache()
     }
+    session=None
 
     class ExpressionError(Exception):
         """
@@ -215,6 +208,7 @@ class Sql:
 
         # INSERT
         self._insert_values = None
+        self._on_dup_update = False
 
         # UPDATE
         self._updates_values = None
@@ -451,17 +445,33 @@ class Sql:
         values = ', '.join(
             ['%s'] * len(list(self._insert_values.values()))
         )
+        ondup=self._generate_on_dup_update()
 
-        base = 'INSERT INTO `{table}`' + Sql.__sep__ + '({columns})' + Sql.__sep__ + 'VALUES ({values})'
+        base = 'INSERT INTO `{table}`' + Sql.__sep__ + \
+               '({columns})' + Sql.__sep__ + \
+               'VALUES ({values})' + Sql.__sep__ + \
+               '{ondup}'
         insert_sql = base.format(
             columns=columns,
             values=values,
             table=table,
+            ondup=ondup,
         )
 
         return insert_sql, list(
             value if type(value) != bool else int(value)
             for value in self._insert_values.values()
+        )
+
+    def _generate_on_dup_update(self):
+        if not self._on_dup_update:
+            return ''
+        base = 'ON DUPLICATE KEY UPDATE {}'
+        return base.format(
+            Sql.__sep__.join(
+                '{col_name}=VALUES({col_name})'.format(col_name=col_name)
+                for col_name in self._insert_values.keys()
+            )
         )
 
     def _generate_set_values(self):
@@ -516,7 +526,7 @@ class Sql:
             sql += Sql.__sep__ + 'WHERE {}=LAST_INSERT_ID()'.format(
                 str(self._table.primary_keys[0])
             )
-        if Sql.__verbose_execution__:
+        if bigsql.config['VERBOSE_SQL_EXECUTION']:
             msg = 'Executing: {} {}'.format(sql, args)
             bigsql.logging.info(msg)
 
@@ -540,13 +550,13 @@ class Sql:
     def _resolve_model(table_name):
         """
         Resolve the name of the table as a
-        string to a BaseModel (else None).
+        string to a DynamicModel (else None).
 
         :param table_name: name of table to be resolved
-        :return: subclass of BaseModel or None
+        :return: subclass of DynamicModel or None
         """
-        models = models.BaseModel.__subclasses__()
-        for model in models:
+        sub_models = models.DynamicModel.__subclasses__()
+        for model in sub_models:
             if model.__name__ == table_name:
                 return model
         return models.TempModel
@@ -590,7 +600,7 @@ class Sql:
                 args + raw_extra_args,
             )
 
-            if self.__verbose_generation__:
+            if bigsql.config['VERBOSE_SQL_GENERATION']:
                 msg = 'Generated: {} {}'.format(*self._sql)
                 bigsql.logging.info(msg)
         return self._sql
@@ -628,16 +638,18 @@ class Sql:
             Model(self._table.name, **kwargs)
             for kwargs in model_init_kwargs
         ]
+        for model in self._result:
+            Sql.session.add(model, initialized=True)
         return self._result
 
-    def first(self, use_cache=__cache_enabled__):
+    def first(self):
         """
         :return: first element of results
         """
-        res = self.all(use_cache)
+        res = self.all()
         return res[0] if len(res) != 0 else None
 
-    def all(self, use_cache=__cache_enabled__):
+    def all(self):
         """
         This method should generate the sql, run it,
         then hand back the result (if expression type
@@ -655,35 +667,21 @@ class Sql:
         model for you.
         """
         self.gen()
-        if use_cache:
-            result = Sql.__cache__['queries'][self]
-            if result is not None:
-                if Sql.__verbose_execution__:
-                    msg = 'Using Cache for: {}'.format(self._sql)
-                    bigsql.logging.info(msg)
-                return result
 
-        if Sql.__verbose_execution__:
+        if bigsql.config['VERBOSE_SQL_EXECUTION']:
             msg = 'Executing: {} {}'.format(*self._sql)
             bigsql.logging.info(msg)
 
-        with bigsql.db.connect() as cursor:
-            cursor.execute(*self._sql)
-            result = list()
-            if self._type in ('SELECT', 'INSERT'):
-                if self._type == 'INSERT':
-                    cursor.fetchall()
-                    sql = self._generate_insert_select()
-                    if Sql.__verbose_execution__:
-                        msg = 'Executing: {} {}'.format(*sql)
-                        bigsql.logging.info(msg)
-                    cursor.execute(sql)
+        raw_result = Sql.session.execute_raw(*self._sql)
 
-                result = self._generate_models(*cursor.fetchall())
+        if self._type in ('SELECT', 'INSERT'):
+            if self._type == 'INSERT':
+                sql=self._generate_insert_select()
+                raw_result=Sql.session.execute_raw(*sql)
 
-            Sql.__cache__['queries'][self] = result
+            result=self._generate_models(*raw_result)
 
-            return result
+        return result
 
     def do(self):
         """
@@ -692,34 +690,6 @@ class Sql:
         :return: calls self.all()
         """
         return self.first()
-
-    @staticmethod
-    def execute_raw(sql, args=None, use_cache=__cache_enabled__):
-        """
-        Will execute then give back all output rows.
-
-        :param str sql: raw sql
-        :param tuple args: iterable arguments
-        :return:
-        """
-        if use_cache:
-            cache_id = '{}{}'.format(str(sql), str(args))
-            result = Sql.__cache__['queries'][cache_id]
-            if result is not None:
-                if Sql.__verbose_execution__:
-                    msg = 'Using Cache for: {} {}'.format(sql, args)
-                    bigsql.logging.info(msg)
-                return result
-        if Sql.__verbose_execution__:
-            msg = 'Executing: {} {}'.format(sql, args)
-            bigsql.logging.info(msg)
-        with bigsql.db.connect() as cursor:
-            cursor.execute(sql, args)
-            result = cursor.fetchall()
-            Sql.__cache__['queries'][
-                '{}{}'.format(str(sql), str(args))
-            ] = result
-            return result
 
     def WHERE(self, *specified_conditions, **conditions):
         """
@@ -837,6 +807,14 @@ class Sql:
                 'Invalid Experssion Type'
             )
         self._order_by_column = column_name
+        return self
+    
+    def ONDUPUPDATE(self):
+        if self._type != 'INSERT':
+            raise self.ExpressionError(
+                'Invalid Expression Type'
+            )
+        self._on_dup_update=True
         return self
 
     @staticmethod
