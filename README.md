@@ -1,46 +1,74 @@
 å
-# BSQL
+# big_SQL
 
-BSQL features dynamic model creation, with on the fly relationship detection and resolution. 
-It uses a high level custom sql query generator in its backend.
+big_SQL is an ORM features dynamic model generation, with on the fly relationship detection and resolution. 
+It uses a high level custom sql generator in its backend.
 
 ### Static generation
 To use the static models with bsql, all you need to do define your models same as other ORMs:
 ```python
-from flask import Flask
+from bigsql import *
 
-from bsql import big_SQL
-from bsql.types import Integer, Varchar, DateTime
-from bsql.models import BaseModel
-
-app=Flask(__name__)
-db=big_SQL(app)
-
-
-# lets define a Test model
-class Test(BaseModel):
-    id = Column(Integer, primary_key=True)
-    a_string = Column(Varchar(128), references='AnotherTable.column_name')
+class Test(DynamicModel):
+    id = Column(Integer, primary_key=True, auto_increment=True)
+    a_string = Column(Varchar(128), references="Person.username")
     date = Column(DateTime)
 
+db = big_SQL(
+    user='root',
+    pword='password',
+    host='127.0.0.1',
+    db='DB',
+)
 
-# creates all models in database
 db.create_all()
 
+t = Test(a_string='a string')
 
-# creates a new Test object
-new_test=Test.query.new(id=1234)
-# modify object 
-new_test.a_string = 'some string'
-# update its entry
-new_test.update()
+db.session.add(t)
 
+try:
+    db.session.add(t)
+    db.session.commit()
+except big_ERROR as e:
+    print('onooooooz', e)
+    db.session.rollback()
 
-# find that same object later 
-new_test=Test.query.find(id=1234).first()
-# to delete object 
-new_test.delete()
 ```
+
+### Static querying
+After we create an object, we will more than likely want to use it again at some point.
+Here is how you can query, modify then commit statically defined models
+```python
+from bigsql import *
+from datetime import datetime
+
+class Test(DynamicModel):
+    id = Column(Integer, primary_key=True, auto_increment=True)
+    a_string = Column(Varchar(128), references="Person.username")
+    date = Column(DateTime)
+
+db = big_SQL(
+    user='root',
+    pword='password',
+    host='127.0.0.1',
+    db='DB',
+)
+
+db.create_all()
+
+t = Test.query.find(a_string='a string').first()
+
+t.date = datetime.now()
+
+try:
+    db.session.commit()
+except big_ERROR as e:
+    print('onooooooz', e)
+    db.session.rollback()
+
+``` 
+
 
 
 ### Dynamic generation
@@ -48,11 +76,11 @@ new_test.delete()
 #### Models
 The really cool thing this ORM does is dynamic model generation. 
 If you already have a database with tables defined, you can 
-just query existing tables, and bsql will generate models for you.
+just query existing tables, and bigsql will generate models for you.
 
 #### Relationships
 If you have a definded foreign key relationship with another table 
-already defined, you don't need to tell bsql about them. For an object 
+already defined, you don't need to tell bigsql about them. For an object 
 with foreign models, you can just access it as a attribute, and it will 
 hand you a list of all objects (either dynamically or statically generated)
 associated with the object. 
@@ -79,11 +107,18 @@ CREATE TABLE Photo
 );
 """
 
-from bsql import big_SQL as bsql
+from bigsql import *
 
-admin = bsql.query.new(username='admin')
+db = big_SQL(
+    user='root',
+    pword='password',
+    host='127.0.0.1',
+    db='DB',
+)
+
+admin = db.query('Person').new(username='admin')
 # new_photo will be a dynamically generated model object
-new_photo = bsql.query('Photo').new(photoOwner='admin')
+new_photo = db.query('Photo').new(photoOwner='admin')
 
 # the relationship will be detected between Photo and Person, 
 # so you can access either .photo or .photos on a Person object
@@ -96,16 +131,23 @@ admins_photos = admin.photos
 The query engine is quite simple and easy to use. It sports the fluent influence style for readability. 
 
 ```python
-from bsql.Sql import Sql
+from bigsql import *
+
+db = big_SQL(
+    user='root',
+    pword='password',
+    host='127.0.0.1',
+    db='DB',
+)
 
 # admin will be a dynamically generated model object
-admin = Sql.SELECTFROM('Person').WHERE(username='admin').first()
+admin = db.sql.SELECTFROM('Person').WHERE(username='admin').first()
 
 # new_user will be a dynamically generated model object
-new_user = Sql.INSERT(username='new_user').INTO('Person').do()
+new_user = db.sql.INSERT(username='new_user').INTO('Person').do()
 
 # to get the raw sql being generated for a query
-raw_sql, args = Sql.SELECTFROM('Photo').JOIN('Person').WHERE(username='admin').gen()
+raw_sql, args = db.sql.SELECTFROM('Photo').JOIN('Person').WHERE(username='admin').gen()
 
 ```
 
