@@ -13,10 +13,10 @@ class Connection(object):
     def __init__(self, name):
         self.name = name
         self.conn = pymysql.connect(
-            host=bigsql.config['BIGSQL_HOST'],
-            password=bigsql.config['BIGSQL_PASSWORD'],
-            user=bigsql.config['BIGSQL_USER'],
-            db=bigsql.config['BIGSQL_DB'],
+            host=bigsql.config.host,
+            password=bigsql.config.pword,
+            user=bigsql.config.user,
+            db=bigsql.config.db,
             charset="utf8mb4",
             cursorclass=pymysql.cursors.Cursor,
         )

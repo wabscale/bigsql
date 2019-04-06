@@ -15,11 +15,6 @@ logging.basicConfig(
 
 
 class DefaultConfig:
-    BIGSQL_USER = 'root'
-    BIGSQL_PASSWORD = 'password'
-    BIGSQL_HOST = '127.0.0.1'
-    BIGSQL_DB = 'TS'
-
     VERBOSE_SQL_GENERATION = False
     VERBOSE_SQL_EXECUTION = True
 
@@ -34,12 +29,17 @@ class DefaultConfig:
 
 
 class big_SQL:
-    def __init__(self, **kwargs):
+    def __init__(self, user, pword, host, db, **kwargs):
         global config
         config={
             item: kwargs[item] if item in kwargs else getattr(DefaultConfig, item)
             for item in DefaultConfig()
         }
+        config.user=user
+        config.pword=pword
+        config.host=host
+        config.db=db
+
         self.session=session.Session()
         Query.session=self.session
         Sql.Sql.session=self.session
