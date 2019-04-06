@@ -22,7 +22,7 @@ class Table:
 
         if name not in Sql.__cache__['tables']:
             self.columns = self._get_columns()
-            self.primary_keys = list(filter(
+            self.primary_keys = tuple(filter(
                 lambda column: column.primary_key,
                 self.columns
             ))
@@ -632,14 +632,18 @@ class Sql:
             for item in results
         ]
         self._result = [
-            Model(**kwargs)
+            Sql.session.add(
+                Model(**kwargs),
+                initialized=True
+            )
             for kwargs in model_init_kwargs
         ] if Model is not models.TempModel else [
-            Model(self._table.name, **kwargs)
+            Sql.session.add(
+                Model(self._table.name, **kwargs),
+                initialized=True
+            )
             for kwargs in model_init_kwargs
         ]
-        for model in self._result:
-            Sql.session.add(model, initialized=True)
         return self._result
 
     def first(self):

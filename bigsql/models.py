@@ -13,7 +13,7 @@ class DynamicModel(object):
     """
     __column_info__: list = None
     __relationships__: dict = None
-    __primary_keys__: list = None
+    __primary_keys__: tuple = None
 
     class ModelError(Exception):
         pass
@@ -62,9 +62,9 @@ class DynamicModel(object):
 
         :param list args: list of data members for object in order they were created.
         """
-        table = Sql.Table(self.__name__)
-        self.__column_info__ = table.columns
-        self.__relationships__ = table.relationships
+        self.__table__ = Sql.Table(self.__name__)
+        self.__column_info__ = self.__table__.columns
+        self.__relationships__ = self.__table__.relationships
         self.__lower_relationships__ = list(map(
             lambda rel: rel.lower(),
             self.__relationships__
@@ -73,7 +73,7 @@ class DynamicModel(object):
             col.column_name: col
             for col in self.__column_info__
         }
-        self.__primary_keys__ = list(filter(
+        self.__primary_keys__ = tuple(filter(
             lambda column: column.primary_key,
             self.__column_info__
         ))
@@ -121,12 +121,9 @@ class DynamicModel(object):
                 return self.__dict__[item]
         return super(DynamicModel, self).__getattribute__(item)
 
-    @property
-    def __modified__(self):
-        return any(
-            getattr(self, key) != self.__original_state__[key]
-            for key in self.__original_state__
-        )
+    def __rollback__(self):
+        for key, value in self.__original_state__:
+            super(DynamicModel, self).__setattr__(key, value)
 
     def __generate_relationships__(self):
         """
@@ -145,7 +142,7 @@ class DynamicModel(object):
                 value = utils.strptime(value)
             elif col.data_type in ('int', 'tinyint'):
                 value = int(value)
-        self.__setattr__(col.column_name, value)
+        super(DynamicModel, self).__setattr__(col.column_name, value)
 
     def __set_model_state__(self, **kwargs):
         for col in self.__column_info__:
@@ -278,6 +275,13 @@ class DynamicModel(object):
             for col in self.__column_info__
             if col.primary_key
         }).gen()
+
+    @property
+    def __modified__(self):
+        return any(
+            getattr(self, key) != self.__original_state__[key]
+            for key in self.__original_state__
+        )
 
 
 class TempModel(DynamicModel):

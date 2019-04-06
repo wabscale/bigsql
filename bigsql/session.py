@@ -6,6 +6,58 @@ import pymysql.cursors
 import warnings
 
 
+@dataclass
+class TrackedObject(object):
+    o: object
+    initialized: bool = False
+
+
+class ObjectTracker(object):
+    def __init__(self):
+        self.__objects__ = {}
+
+    def __iter__(self):
+        for table in self.__objects__:
+            for tracked_o in self.__objects__[table].values():
+                yield tracked_o
+
+    def __contains__(self, o):
+        table_key, object_key=self.make_key(o)
+        return table_key not in self.__objects__ or object_key not in self.__objects__[table_key]
+
+    def add(self, o, initialized=False):
+        """
+        Will add object to tracking session if it is not already there.
+        Will return the the object if it is new to the session, or object
+        in the session.
+
+        :param o:
+        :param initialized:
+        :return:
+        """
+        table_key, object_key = self.make_key(o)
+        if table_key not in self.__objects__:
+            self.__objects__[table_key] = dict()
+        if object_key not in self.__objects__[table_key]:
+            self.__objects__[table_key][object_key] = TrackedObject(
+                o=o,
+                initialized=initialized
+            )
+        return self.__objects__[table_key][object_key].o
+
+    def clear(self):
+        self.__objects__.clear()
+
+    @staticmethod
+    def make_key(o):
+        table_key = o.__table__.name
+        object_key = tuple(
+            getattr(o, col.column_name)
+            for col in o.__primary_keys__
+        )
+        return table_key, object_key
+
+
 class Connection(object):
     """
     Simple wrapper for pymysql connections
@@ -13,10 +65,10 @@ class Connection(object):
     def __init__(self, name):
         self.name = name
         self.conn = pymysql.connect(
-            host=bigsql.config.host,
-            password=bigsql.config.pword,
-            user=bigsql.config.user,
-            db=bigsql.config.db,
+            host=bigsql.config['host'],
+            password=bigsql.config['pword'],
+            user=bigsql.config['user'],
+            db=bigsql.config['db'],
             charset="utf8mb4",
             cursorclass=pymysql.cursors.Cursor,
         )
@@ -47,15 +99,6 @@ class Connection(object):
         self.conn.close()
 
 
-@dataclass
-class TrackedObject(object):
-    o: object
-    initialized: bool = False
-
-    def __hash__(self):
-        return hash(str(self.o.__primary_keys__))
-
-
 class Session(object):
     """
     Session should handle transactions for the connections
@@ -67,7 +110,7 @@ class Session(object):
     self.raw_conn : connection for handing raw execution
     """
     def __init__(self):
-        self.tracked_objects=set()
+        self.object_tracker = ObjectTracker()
 
         self.orm_conn = Connection('mod')
         self.raw_conn = Connection('raw')
@@ -84,7 +127,6 @@ class Session(object):
         self.raw_conn.commit_transaction()
         return r
 
-
     def add(self, o, initialized=False):
         """
         Function that adds obj to session state. All it needs to do here
@@ -100,12 +142,11 @@ class Session(object):
                     o
                 )
             )
-        if o in map(lambda to: to.o, self.tracked_objects):
-            raise err.big_ERROR('object already in session')
-        self.tracked_objects.add(TrackedObject(
-            initialized=initialized,
-            o=o,
-        ))
+
+        return self.object_tracker.add(
+            o,
+            initialized
+        )
 
     def commit(self):
         """
@@ -113,12 +154,12 @@ class Session(object):
 
         :return:
         """
-        for o in self.tracked_objects:
+        for o in self.object_tracker:
             sql = o.o.__update_sql__ if o.initialized else o.o.__insert_sql__
             self.orm_conn.execute(*sql)
             o.initialized = True
         self.orm_conn.commit_transaction()
-        self.tracked_objects.clear()
+        self.object_tracker.clear()
 
 
     def rollback(self):

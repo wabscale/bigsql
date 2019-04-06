@@ -35,10 +35,10 @@ class big_SQL:
             item: kwargs[item] if item in kwargs else getattr(DefaultConfig, item)
             for item in DefaultConfig()
         }
-        config.user=user
-        config.pword=pword
-        config.host=host
-        config.db=db
+        config['user']=user
+        config['pword']=pword
+        config['host']=host
+        config['db']=db
 
         self.session=session.Session()
         Query.session=self.session

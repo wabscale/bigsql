@@ -78,6 +78,7 @@ class Column:
             'text'     : Text,
             'varchar'  : Varchar(128),
             'timestamp': DateTime,
+            'datetime' : DateTime,
         }[type_name]
 
     @property
