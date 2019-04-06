@@ -6,47 +6,51 @@ from scanf import scanf
 
 @dataclass
 class DataType:
-    name: str = None
+    name: str=None
 
     def __init__(self, length):
-        self.name = '{}({})'.format(
+        self.name='{}({})'.format(
             self.name,
             length
         )
 
 
 class Integer(DataType):
-    name: str = 'INT'
+    name: str='INT'
 
 
 class Text(DataType):
-    name: str = 'TEXT'
+    name: str='TEXT'
 
 
 class DateTime(DataType):
-    name: str = 'DATETIME'
+    name: str='DATETIME'
 
 
 class Varchar(DataType):
-    name: str = 'VARCHAR'
+    name: str='VARCHAR'
 
 
 class Column:
-    name: str = None
-    data_type: DataType = None
-    primary_key: bool = False
-    table_name: str = None
-    nullable = None
-    references = None
-    on_delete = None
+    column_name: str=None
+    data_type: DataType=None
+    primary_key: bool=False
+    table_name: str=None
+    auto_increment: bool=False
+    nullable: bool=None
+    references: str=None
+    on_delete: str=None
+    unique: bool=False
 
     def __init__(self, data_type, **kwargs):
-        self.data_type = data_type
-        default_attrs = {
-            'primary_key': False,
-            'nullable': False,
-            'references': None,
-            'on_delete': None,
+        self.data_type=data_type
+        default_attrs={
+            'primary_key'   : False,
+            'nullable'      : False,
+            'references'    : None,
+            'on_delete'     : None,
+            'auto_increment': False,
+            'unique'        : False
         }
 
         for default_name, default_value in default_attrs.items():
@@ -57,40 +61,40 @@ class Column:
                     else kwargs[default_name]
             )
         if self.references is not None:
-            self.foreign_table, self.foreign_column = scanf('%s.%s', self.references)
+            self.foreign_table, self.foreign_column=scanf('%s.%s', self.references)
 
     def __str__(self):
-        return '`{}`.`{}`'.format(self.table_name, self.name)
+        return '`{}`.`{}`'.format(self.table_name, self.column_name)
 
     def set_name(self, name, table_name):
-        self.name, self.table_name = name, table_name
+        self.column_name, self.table_name=name, table_name
         return self
 
     @staticmethod
     def resolve_type(type_name):
         return {
-            'int': Integer,
-            'tinyint': Integer,
-            'str': Text,
-            'varchar': Varchar(128),
+            'int'      : Integer,
+            'tinyint'  : Integer,
+            'text'     : Text,
+            'varchar'  : Varchar(128),
             'timestamp': DateTime,
         }[type_name]
 
     @property
     def sql(self):
-        base = '`{name}` {data_type}{primary_key}{nullable}'
+        base='`{name}` {data_type}{auto_increment}{nullable}'
         return base.format(
-            name=self.name,
+            name=self.column_name,
             data_type=self.data_type.name,
-            primary_key=' PRIMARY KEY' if self.primary_key else '',
+            auto_increment=' AUTO_INCREMENT' if self.auto_increment else '',
             nullable=' NOT NULL' if not self.nullable else ' NULL'
         )
 
     @property
     def ref_sql(self):
-        base = 'FOREIGN KEY ({name}) REFERENCES {foreign_table}({foreign_column}){on_delete}'
+        base='FOREIGN KEY ({name}) REFERENCES {foreign_table}({foreign_column}){on_delete}'
         return base.format(
-            name=self.name,
+            name=self.column_name,
             foreign_table=self.foreign_table,
             foreign_column=self.foreign_column,
             on_delete='ON DELETE {}'.format(

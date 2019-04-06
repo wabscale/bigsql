@@ -1,8 +1,9 @@
-import pymysql.cursors
 from . import bigsql
 from . import models
 from . import err
 from dataclasses import dataclass
+import pymysql.cursors
+import warnings
 
 
 class Connection(object):
@@ -21,18 +22,12 @@ class Connection(object):
         )
         self.cursor = self.conn.cursor()
 
-    def start_transaction(self):
-        """
-        starts transaction
-        """
-        self.cursor.execute('START TRANSACTION;')
-
     def commit_transaction(self):
         """
         commit transaction
         :return:
         """
-        self.cursor.execute('COMMIT;')
+        self.conn.commit()
 
     def rollback_transaction(self):
         """
@@ -40,10 +35,12 @@ class Connection(object):
 
         :return:
         """
-        self.cursor.execute('ROLLBACK;')
+        self.conn.rollback()
 
     def execute(self, sql, args=None):
-        self.cursor.execute(sql, args)
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            self.cursor.execute(sql, args)
         return self.cursor
 
     def close(self):
@@ -54,6 +51,9 @@ class Connection(object):
 class TrackedObject(object):
     o: object
     initialized: bool = False
+
+    def __hash__(self):
+        return hash(str(self.o.__primary_keys__))
 
 
 class Session(object):
@@ -67,14 +67,12 @@ class Session(object):
     self.raw_conn : connection for handing raw execution
     """
     def __init__(self):
-        self.tracked_objects=[]
+        self.tracked_objects=set()
 
         self.orm_conn = Connection('mod')
         self.raw_conn = Connection('raw')
 
-        self.orm_conn.start_transaction()
-
-    def execute_raw(self, sql, args):
+    def execute_raw(self, sql, args=None):
         """
         Will execute then give back all output rows.
 
@@ -82,7 +80,9 @@ class Session(object):
         :param tuple args: iterable arguments
         :return:
         """
-        return self.raw_conn.execute(sql, args).fetchall()
+        r = self.raw_conn.execute(sql, args).fetchall()
+        self.raw_conn.commit_transaction()
+        return r
 
 
     def add(self, o, initialized=False):
@@ -100,7 +100,9 @@ class Session(object):
                     o
                 )
             )
-        self.tracked_objects.append(TrackedObject(
+        if o in map(lambda to: to.o, self.tracked_objects):
+            raise err.big_ERROR('object already in session')
+        self.tracked_objects.add(TrackedObject(
             initialized=initialized,
             o=o,
         ))
@@ -111,16 +113,11 @@ class Session(object):
 
         :return:
         """
-        try:
-            for o in self.tracked_objects:
-                sql = o.__update_sql__ if o.initialized else o.__insert_sql
-                self.orm_conn.execute(sql)
-            self.orm_conn.commit_transaction()
-            self.orm_conn.start_transaction()
-        except pymysql.err.IntegrityError:
-            raise err.big_ERROR(
-                'IntegrityError'
-            )
+        for o in self.tracked_objects:
+            sql = o.o.__update_sql__ if o.initialized else o.o.__insert_sql__
+            self.orm_conn.execute(*sql)
+            o.initialized = True
+        self.orm_conn.commit_transaction()
         self.tracked_objects.clear()
 
 

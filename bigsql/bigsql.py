@@ -60,11 +60,11 @@ class big_SQL:
         all models defined as subclasses of BaseModel.
         """
         for model_type in models.DynamicModel.__subclasses__():
-            if model_type == models.DynamicModel.TempModel:
+            if model_type == models.TempModel:
                 continue
             raw = models.DynamicModel.__table_sql__(model_type)
             if raw is not None:
-                Sql.Sql.execute_raw(
+                Sql.Sql.session.execute_raw(
                     raw
                 )
 

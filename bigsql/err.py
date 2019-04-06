@@ -1,4 +1,4 @@
+import pymysql.err
 
-
-class big_ERROR(Exception):
+class big_ERROR(pymysql.err.IntegrityError):
     pass

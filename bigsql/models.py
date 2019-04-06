@@ -70,7 +70,7 @@ class DynamicModel(object):
             self.__relationships__
         ))
         self.__column_lot__ = {
-            col.name: col
+            col.column_name: col
             for col in self.__column_info__
         }
         self.__primary_keys__ = list(filter(
@@ -86,8 +86,8 @@ class DynamicModel(object):
             self.__name__,
             '{{\n{}\n}}'.format(',\n'.join(
                 '    {:12}: {}'.format(
-                    col.name,
-                    str(self.__dict__[col.name])
+                    col.column_name,
+                    str(self.__dict__[col.column_name])
                 )
                 for col in self.__column_info__
             ))
@@ -145,11 +145,11 @@ class DynamicModel(object):
                 value = utils.strptime(value)
             elif col.data_type in ('int', 'tinyint'):
                 value = int(value)
-        self.__setattr__(col.name, value)
+        self.__setattr__(col.column_name, value)
 
     def __set_model_state__(self, **kwargs):
         for col in self.__column_info__:
-            self.__set_column_value__(col.name, None)
+            self.__set_column_value__(col.column_name, None)
         for col, val in kwargs.items():
             self.__set_column_value__(col, val)
 
@@ -160,7 +160,9 @@ class DynamicModel(object):
             for item, value in class_type.__dict__.items()
             if isinstance(value, types.Column)
         ]
-        primary_sql='\n    PRIMARY KEY ({}),'.format(', '.join(map(
+        if len(columns) == 0:
+            return None
+        primary_sql=',\n    PRIMARY KEY ({})'.format(', '.join(map(
             lambda col: col.column_name,
             filter(
                 lambda col: col.primary_key,
@@ -171,12 +173,20 @@ class DynamicModel(object):
             lambda col: col.unique,
             columns
         ))
-        uniqs='\n    UNIQUE ({}),'.format(', '.join(map(
+        uniqs=',\n    UNIQUE ({})'.format(', '.join(map(
             lambda col: col.column_name,
             unique_cols
         ))) if len(unique_cols) != 0 else ''
-        if len(columns) == 0:
-            return None
+        ref_cols=[
+            column
+            for column in columns
+            if column.references is not None
+        ]
+        refs=',\n' + ',\n'.join(
+            ' ' * 4 + column.ref_sql
+            for column in ref_cols
+        ) if len(ref_cols) != 0 else ''
+
         base = 'CREATE TABLE IF NOT EXISTS {table_name} (\n{columns}{primarys}{refs}{uniqs}\n);'
         sql = base.format(
             table_name=class_type.__name__,
@@ -184,11 +194,8 @@ class DynamicModel(object):
                 ' ' * 4 + column.sql
                 for column in columns
             ),
-            refs=',\n' + ',\n'.join(
-                ' ' * 4 + column.ref_sql
-                for column in columns
-            ),
             primarys=primary_sql,
+            refs=refs,
             uniqs=uniqs,
         )
         if bigsql.config['VERBOSE_SQL_GENERATION']:
@@ -217,7 +224,7 @@ class DynamicModel(object):
     @property
     def __defined_columns__(self):
         yield from (
-            value.set_name(item)
+            value.set_name(item, value.__class__.__name__)
             for item, value in self.__class__.__dict__.items()
             if isinstance(value, types.Column)
         )
@@ -233,7 +240,7 @@ class DynamicModel(object):
 
         :return: sql, args
         """
-        return Sql.INSERT(
+        return Sql.Sql.INSERT(
             **self.__current_state__
         ).INTO(
             self.__class__.__name__
@@ -250,11 +257,11 @@ class DynamicModel(object):
         :return:
         """
         return Sql.Sql.UPDATE(self.__name__).SET(**{
-            col.name: self.__getattr__(col.name)
+            col.column_name: self.__getattr__(col.column_name)
             for col in self.__column_info__
             if not col.primary_key
         }).WHERE(**{
-            col.name: self.__getattr__(col.name)
+            col.column_name: self.__getattr__(col.column_name)
             for col in self.__column_info__
             if col.primary_key
         }).gen()
@@ -267,7 +274,7 @@ class DynamicModel(object):
         :return:
         """
         return Sql.Sql.DELETE(self.__name__).WHERE(**{
-            col.name: self.__getattr__(col.name)
+            col.column_name: self.__getattr__(col.column_name)
             for col in self.__column_info__
             if col.primary_key
         }).gen()
@@ -287,8 +294,8 @@ class TempModel(DynamicModel):
             self.__name__,
             '{{\n{}\n}}'.format(',\n'.join(
                 '    {:12}: {}'.format(
-                    col.name,
-                    str(self.__dict__[col.name])
+                    col.column_name,
+                    str(self.__dict__[col.column_name])
                 )
                 for col in self.__column_info__
             ))
