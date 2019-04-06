@@ -1,4 +1,3 @@
-å
 # big_SQL
 
 big_SQL is an ORM features dynamic model generation, with on the fly relationship detection and resolution. 
