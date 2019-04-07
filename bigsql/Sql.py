@@ -658,14 +658,14 @@ class Sql:
         ]
         return self._result
 
-    def first(self, raw=False):
+    def first(self, raw=True):
         """
         :return: first element of results
         """
         res=self.all(raw)
         return res[0] if len(res) != 0 else None
 
-    def all(self, raw=False):
+    def all(self, raw=True):
         """
         This method should generate the sql, run it,
         then hand back the result (if expression type
@@ -685,21 +685,19 @@ class Sql:
         self.gen()
 
         raw_result={
-            False: Sql.session.execute_raw,
-            True: Sql.session.orm_conn.execute
+            True: Sql.session.execute_raw,
+            False: Sql.session.orm_conn.execute
         }[raw](*self._sql)
 
         if self._type in ('SELECT', 'INSERT'):
             if self._type == 'INSERT':
                 sql=self._generate_insert_select()
                 raw_result={
-                    False: Sql.session.execute_raw,
-                    True: Sql.session.orm_conn.execute
+                    True: Sql.session.execute_raw,
+                    False: Sql.session.orm_conn.execute
                 }[raw](*sql)
 
-            result=self._generate_models(*raw_result)
-
-        return result
+            return self._generate_models(*raw_result)
 
     def do(self, raw=True):
         """
