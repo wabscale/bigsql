@@ -27,6 +27,10 @@ class DateTime(DataType):
     name: str='DATETIME'
 
 
+class TimeStamp(DataType):
+    name: str = 'TIMESTAMP'
+
+
 class Varchar(DataType):
     name: str='VARCHAR'
 

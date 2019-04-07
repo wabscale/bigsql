@@ -4,6 +4,8 @@ from . import types
 from . import utils
 from . import bigsql
 
+from copy import deepcopy
+
 
 class DynamicModel(object):
     """
@@ -16,6 +18,9 @@ class DynamicModel(object):
     __primary_keys__: tuple = None
 
     class ModelError(Exception):
+        pass
+
+    class EmptyValue:
         pass
 
     class Relationship:
@@ -78,8 +83,9 @@ class DynamicModel(object):
             self.__column_info__
         ))
 
-        self.__set_model_state__(**kwargs)
         self.__original_state__=kwargs
+        self.__current_state__=deepcopy(kwargs)
+        self.__set_model_state__(**kwargs)
 
     def __str__(self):
         return '<{}Model: {}>'.format(
@@ -87,7 +93,7 @@ class DynamicModel(object):
             '{{\n{}\n}}'.format(',\n'.join(
                 '    {:12}: {}'.format(
                     col.column_name,
-                    str(self.__dict__[col.column_name])
+                    str(getattr(self, col.column_name))
                 )
                 for col in self.__column_info__
             ))
@@ -96,6 +102,10 @@ class DynamicModel(object):
     def __setattr__(self, key, value):
         if 'primary_keys' in self.__dict__ and key in self.__dict__['primary_keys']:
             raise self.__dict__['ModelError']('Unable to modify primary key value')
+        if '__current_state__' in self.__dict__ and key in self.__current_state__:
+            self.__current_state__[key] = value
+            Sql.Sql.session.orm_conn.execute(*self.__update_sql__)
+
         self.__dict__[key] = value
         # setattr(self, key, value)
 
@@ -106,6 +116,10 @@ class DynamicModel(object):
         """
         if item == '__name__':  # boy this is a messy fix
             return self.__class__.__name__
+
+        if '__current_state__' in self.__dict__ and item in self.__current_state__:
+            return self.__current_state__[item]
+
         if self.__lower_relationships__ is not None:
             if item in self.__lower_relationships__:
                 self.__dict__[item] = self.Relationship(
@@ -119,11 +133,10 @@ class DynamicModel(object):
                     item[0].upper() + item[1:-1]
                 )
                 return self.__dict__[item]
-        return super(DynamicModel, self).__getattribute__(item)
+        # return super(DynamicModel, self).__getattribute__(item)
 
     def __rollback__(self):
-        for key, value in self.__original_state__:
-            super(DynamicModel, self).__setattr__(key, value)
+        self.__current_state__ = deepcopy(self.__original_state__)
 
     def __generate_relationships__(self):
         """
@@ -142,11 +155,11 @@ class DynamicModel(object):
                 value = utils.strptime(value)
             elif col.data_type in ('int', 'tinyint'):
                 value = int(value)
-        super(DynamicModel, self).__setattr__(col.column_name, value)
+        self.__current_state__[column_name] = value
 
     def __set_model_state__(self, **kwargs):
         for col in self.__column_info__:
-            self.__set_column_value__(col.column_name, None)
+            self.__set_column_value__(col.column_name, self.EmptyValue())
         for col, val in kwargs.items():
             self.__set_column_value__(col, val)
 
@@ -204,17 +217,12 @@ class DynamicModel(object):
         return Query.Query(cls)
 
     @property
-    def __current_state__(self):
-        return {
-            col.column_name: getattr(self, col.column_name)
-            for col in self.__defined_columns__
-        }
-
-    @property
     def __insert_update__(self):
-        return Sql.INSERT(
-            **self.__current_state__
-        ).INTO(
+        return Sql.INSERT(**{
+            key: value
+            for key, value in self.__current_state__.items()
+            if not isinstance(value, self.EmptyValue)
+        }).INTO(
             self.__class__.__name__
         ).ONDUPUPDATE().gen()
 
@@ -237,9 +245,11 @@ class DynamicModel(object):
 
         :return: sql, args
         """
-        return Sql.Sql.INSERT(
-            **self.__current_state__
-        ).INTO(
+        return Sql.Sql.INSERT(**{
+            key: value
+            for key, value in self.__current_state__.items()
+            if not isinstance(value, self.EmptyValue)
+        }).INTO(
             self.__class__.__name__
         ).gen()
 
@@ -283,6 +293,10 @@ class DynamicModel(object):
             for key in self.__original_state__
         )
 
+    def __update_current_state(self):
+        self.__original_state__ = deepcopy(self.__current_state__)
+
+
 
 class TempModel(DynamicModel):
     """
@@ -304,3 +318,31 @@ class TempModel(DynamicModel):
                 for col in self.__column_info__
             ))
         )
+
+
+class StaticModel(DynamicModel):
+    def __init__(self, **kwargs):
+        super(StaticModel, self).__init__(**kwargs)
+        self.__current_state__ = deepcopy(kwargs)
+        self.__initialize_state__()
+
+    def __getattribute__(self, item):
+        if '__column_info__' in super(StaticModel, self).__getattribute__('__dict__'):
+            col_names = list(map(
+                lambda col: col.column_name,
+                super(StaticModel, self).__getattribute__('__column_info__')
+            ))
+            if item in col_names:
+                return self.__getattr__(item)
+        return super(StaticModel, self).__getattribute__(item)
+
+    def __initialize_state__(self):
+        m = Sql.Sql.INSERT(**{
+            key: value
+            for key, value in self.__current_state__.items()
+            if not isinstance(value, self.EmptyValue)
+        }).INTO(
+            self.__class__.__name__
+        ).do()
+        for key, value in m.__current_state__.items():
+            super(StaticModel, self).__set_column_value__(key, value)

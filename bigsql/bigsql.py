@@ -1,12 +1,11 @@
-from . import Query
-from . import models
-from . import Sql
-from . import session
-from flaskext.mysql import MySQL
-
 import logging
 import os
+import warnings
 
+from . import Query
+from . import Session
+from . import Sql
+from . import models
 
 logging.basicConfig(
     format='%(message)s',
@@ -15,11 +14,11 @@ logging.basicConfig(
 
 
 class DefaultConfig:
-    VERBOSE_SQL_GENERATION = False
-    VERBOSE_SQL_EXECUTION = True
+    VERBOSE_SQL_GENERATION=False
+    VERBOSE_SQL_EXECUTION=True
 
-    SQL_CACHE_TIMEOUT = 5
-    SQL_CACHE_ENABLED = True
+    SQL_CACHE_TIMEOUT=5
+    SQL_CACHE_ENABLED=True
 
     def __iter__(self):
         yield from filter(
@@ -40,7 +39,7 @@ class big_SQL:
         config['host']=host
         config['db']=db
 
-        self.session=session.Session()
+        self.session=Session.Session()
         Query.session=self.session
         Sql.Sql.session=self.session
 
@@ -59,14 +58,14 @@ class big_SQL:
         Generates all create table sql, then runs it for
         all models defined as subclasses of BaseModel.
         """
-        for model_type in models.DynamicModel.__subclasses__():
-            if model_type == models.TempModel:
-                continue
-            raw = models.DynamicModel.__table_sql__(model_type)
-            if raw is not None:
-                Sql.Sql.session.execute_raw(
-                    raw
-                )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            for model_type in models.StaticModel.__subclasses__():
+                raw=models.StaticModel.__table_sql__(model_type)
+                if raw is not None:
+                    Sql.Sql.session.execute_raw(
+                        raw
+                    )
 
 
 config=None

@@ -3,35 +3,35 @@ from dataclasses import dataclass
 
 from scanf import scanf
 
+from . import bigsql
 from . import models
 from . import types
-from . import bigsql
 
 
 class Table:
-    column_info_sql = 'SELECT COLUMN_NAME, DATA_TYPE, COLUMN_KEY ' \
-                      'FROM INFORMATION_SCHEMA.COLUMNS ' \
-                      'WHERE TABLE_NAME=%s ' \
-                      'AND TABLE_SCHEMA=DATABASE();'
-    relationship_info_sql = 'SELECT TABLE_NAME ' \
-                            'FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE ' \
-                            'WHERE REFERENCED_TABLE_NAME=%s;'
+    column_info_sql='SELECT COLUMN_NAME, DATA_TYPE, COLUMN_KEY ' \
+                    'FROM INFORMATION_SCHEMA.COLUMNS ' \
+                    'WHERE TABLE_NAME=%s ' \
+                    'AND TABLE_SCHEMA=DATABASE();'
+    relationship_info_sql='SELECT TABLE_NAME ' \
+                          'FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE ' \
+                          'WHERE REFERENCED_TABLE_NAME=%s;'
 
     def __init__(self, name):
-        self.name = name
+        self.name=name
 
         if name not in Sql.__cache__['tables']:
-            self.columns = self._get_columns()
-            self.primary_keys = tuple(filter(
+            self.columns=self._get_columns()
+            self.primary_keys=tuple(filter(
                 lambda column: column.primary_key,
                 self.columns
             ))
-            self.relationships = self._get_relationships()
-            Sql.__cache__['tables'][name] = self
+            self.relationships=self._get_relationships()
+            Sql.__cache__['tables'][name]=self
         else:
-            self.columns = Sql.__cache__['tables'][name].columns
-            self.primary_keys = Sql.__cache__['tables'][name].primary_keys
-            self.relationships = Sql.__cache__['tables'][name].relationships
+            self.columns=Sql.__cache__['tables'][name].columns
+            self.primary_keys=Sql.__cache__['tables'][name].primary_keys
+            self.relationships=Sql.__cache__['tables'][name].relationships
 
     def _get_columns(self):
         """
@@ -76,7 +76,7 @@ class JoinedTable(Table):
     @dataclass
     class _JoinAttribute:
         name: str
-        ref_name: str = None
+        ref_name: str=None
 
         def is_same(self):
             return self.name == self.ref_name
@@ -84,21 +84,21 @@ class JoinedTable(Table):
     class JoinError(Exception):
         pass
 
-    ref_info_sql = 'SELECT COLUMN_NAME, REFERENCED_COLUMN_NAME ' \
-                   'FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE ' \
-                   'WHERE TABLE_NAME=%s ' \
-                   'AND REFERENCED_TABLE_NAME=%s ' \
-                   'AND TABLE_SCHEMA=DATABASE();'
+    ref_info_sql='SELECT COLUMN_NAME, REFERENCED_COLUMN_NAME ' \
+                 'FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE ' \
+                 'WHERE TABLE_NAME=%s ' \
+                 'AND REFERENCED_TABLE_NAME=%s ' \
+                 'AND TABLE_SCHEMA=DATABASE();'
 
     def __init__(self, current_table, ref_table):
         super(self.__class__, self).__init__(ref_table)
-        self.current_table = current_table.name
-        self.join_attr = None
-        self.sql = None
+        self.current_table=current_table.name
+        self.join_attr=None
+        self.sql=None
 
     @staticmethod
     def resolve_attribute(current_table, foreign_table):
-        raw = Sql.execute_raw(
+        raw=Sql.execute_raw(
             JoinedTable.ref_info_sql,
             (current_table, foreign_table,)
         )
@@ -115,14 +115,14 @@ class JoinedTable(Table):
         if self.sql is not None:
             return self.sql
 
-        name, ref_name = self.resolve_attribute(self.current_table, self.name)
+        name, ref_name=self.resolve_attribute(self.current_table, self.name)
 
-        self.join_attr = self._JoinAttribute(
+        self.join_attr=self._JoinAttribute(
             name=name,
             ref_name=ref_name
         )
 
-        self.sql = 'JOIN {ref_table}'.format(
+        self.sql='JOIN {ref_table}'.format(
             ref_table=self.name
         ) if self.join_attr.is_same() else 'JOIN {ref_table} ON `{table}`.`{name}`=`{ref_table}`.`{ref_name}`'.format(
             table=self.current_table,
@@ -155,9 +155,9 @@ class Sql:
     bigsql.config['VERBOSE_SQL_GENERATION'] : bool
     __cache__   : dict
     """
-    __sep__ = ' '
+    __sep__=' '
 
-    __cache__ = {
+    __cache__={
         'tables': {},
     }
     session=None
@@ -172,7 +172,7 @@ class Sql:
         attribute: str
         attribute_table: str
         value: str
-        operator: str = None
+        operator: str=None
 
         def __iter__(self):
             """
@@ -192,26 +192,26 @@ class Sql:
         """
         Only needs to null out all the state attributes.
         """
-        self._type = None
-        self._table = None
-        self._sql = None
-        self._attrs = None
-        self._result = None
-        self._raw_append_values = None
+        self._type=None
+        self._table=None
+        self._sql=None
+        self._attrs=None
+        self._result=None
+        self._raw_append_values=None
 
         # SELECT
-        self._columns = None
-        self._joins = None
-        self._conditions = None
-        self._group_by_column = None
-        self._order_by_column = None
+        self._columns=None
+        self._joins=None
+        self._conditions=None
+        self._group_by_column=None
+        self._order_by_column=None
 
         # INSERT
-        self._insert_values = None
-        self._on_dup_update = False
+        self._insert_values=None
+        self._on_dup_update=False
 
         # UPDATE
-        self._updates_values = None
+        self._updates_values=None
 
     def __iter__(self):
         """
@@ -289,7 +289,7 @@ class Sql:
         :param conditions: conditions that will be resolved
         """
         if self._conditions is None:
-            self._conditions = []
+            self._conditions=[]
 
         if self._type not in ('SELECT', 'UPDATE', 'DELETE') or self._table is None:
             raise self.ExpressionError(
@@ -297,13 +297,13 @@ class Sql:
             )
 
         for condition in specified_conditions:
-            table, attribute, value = scanf('%s.%s=%s', condition)
+            table, attribute, value=scanf('%s.%s=%s', condition)
 
             if all(c in string.digits for c in value):
-                value = int(value)
+                value=int(value)
 
             if value in ('True', 'False'):
-                value = 1 if value == 'True' else 0
+                value=1 if value == 'True' else 0
 
             self._conditions.append(
                 self._Condition(
@@ -315,7 +315,7 @@ class Sql:
             )
 
         for attribute, value in conditions.items():
-            attribute_table = self._resolve_attribute(attribute)
+            attribute_table=self._resolve_attribute(attribute)
             self._conditions.append(
                 self._Condition(
                     operator=clause,
@@ -330,17 +330,17 @@ class Sql:
         Will fill self._attributes with self._Attributes for
         self._table and joined tables.
         """
-        column_info_sql = 'SELECT COLUMN_NAME ' \
-                          'FROM INFORMATION_SCHEMA.COLUMNS ' \
-                          'WHERE TABLE_NAME=%s ' \
-                          'AND TABLE_SCHEMA=DATABASE();'
-        joined_tables = list(map(
+        column_info_sql='SELECT COLUMN_NAME ' \
+                        'FROM INFORMATION_SCHEMA.COLUMNS ' \
+                        'WHERE TABLE_NAME=%s ' \
+                        'AND TABLE_SCHEMA=DATABASE();'
+        joined_tables=list(map(
             lambda jt: jt.ref_table,
             self._joins
         )) if self._joins is not None else []
-        all_tables = joined_tables + [self._table]
+        all_tables=joined_tables + [self._table]
         for table_name in all_tables:
-            current_table_attrs = Sql.execute_raw(column_info_sql, table_name)
+            current_table_attrs=Sql.execute_raw(column_info_sql, table_name)
             for attr in map(lambda x: x[0], current_table_attrs):
                 self._attrs.append(
                     self._Attribute(
@@ -411,14 +411,14 @@ class Sql:
                 'Expression state incomplete'
             )
 
-        base = 'SELECT {columns}' + Sql.__sep__ + 'FROM {table}{joins}{conditions}{groupby}{orderby}'
+        base='SELECT {columns}' + Sql.__sep__ + 'FROM {table}{joins}{conditions}{groupby}{orderby}'
 
-        table = '`{table}`'.format(table=self._table)
-        columns = self._generate_select_columns()
-        conditions, args = self._generate_conditions()
-        joins = self._generate_joins()
-        groupby = self._generate_groupby()
-        orderby = self._generate_orderby()
+        table='`{table}`'.format(table=self._table)
+        columns=self._generate_select_columns()
+        conditions, args=self._generate_conditions()
+        joins=self._generate_joins()
+        groupby=self._generate_groupby()
+        orderby=self._generate_orderby()
 
         return base.format(
             conditions=conditions,
@@ -438,20 +438,20 @@ class Sql:
                 'Expression state incomplete'
             )
 
-        table = self._table
-        columns = ', '.join('`{column_name}`'.format(
+        table=self._table
+        columns=', '.join('`{column_name}`'.format(
             column_name=column_name
         ) for column_name in self._insert_values.keys())
-        values = ', '.join(
+        values=', '.join(
             ['%s'] * len(list(self._insert_values.values()))
         )
         ondup=self._generate_on_dup_update()
 
-        base = 'INSERT INTO `{table}`' + Sql.__sep__ + \
-               '({columns})' + Sql.__sep__ + \
-               'VALUES ({values})' + Sql.__sep__ + \
-               '{ondup}'
-        insert_sql = base.format(
+        base='INSERT INTO `{table}`' + Sql.__sep__ + \
+             '({columns})' + Sql.__sep__ + \
+             'VALUES ({values})' + Sql.__sep__ + \
+             '{ondup}'
+        insert_sql=base.format(
             columns=columns,
             values=values,
             table=table,
@@ -466,7 +466,7 @@ class Sql:
     def _generate_on_dup_update(self):
         if not self._on_dup_update:
             return ''
-        base = 'ON DUPLICATE KEY UPDATE {}'
+        base='ON DUPLICATE KEY UPDATE {}'
         return base.format(
             Sql.__sep__.join(
                 '{col_name}=VALUES({col_name})'.format(col_name=col_name)
@@ -496,11 +496,11 @@ class Sql:
                 'Expression state incomplete'
             )
 
-        table = self._table
-        values, args1 = self._generate_set_values()
-        conditions, args2 = self._generate_conditions()
+        table=self._table
+        values, args1=self._generate_set_values()
+        conditions, args2=self._generate_conditions()
 
-        base = 'UPDATE `{table}` SET {values}{conditions}'
+        base='UPDATE `{table}` SET {values}{conditions}'
 
         return base.format(
             table=table,
@@ -518,16 +518,16 @@ class Sql:
         :return: sql str
         """
 
-        if all(pkey.name in self._insert_values for pkey in self._table.primary_keys):
-            sql, args = Sql.SELECTFROM(self._table.name).WHERE(**self._insert_values).gen()
+        if all(pkey.column_name in self._insert_values for pkey in self._table.primary_keys):
+            sql, args=Sql.SELECTFROM(self._table.name).WHERE(**self._insert_values).gen()
         else:
-            sql, args = Sql.SELECTFROM(self._table.name).gen()
-            sql = sql[:-1]  # cut off
-            sql += Sql.__sep__ + 'WHERE {}=LAST_INSERT_ID()'.format(
+            sql, args=Sql.SELECTFROM(self._table.name).gen()
+            sql=sql[:-1]  # cut off
+            sql+=Sql.__sep__ + 'WHERE {}=LAST_INSERT_ID()'.format(
                 str(self._table.primary_keys[0])
             )
         if bigsql.config['VERBOSE_SQL_EXECUTION']:
-            msg = 'Executing: {} {}'.format(sql, args)
+            msg='Executing: {} {}'.format(sql, args)
             bigsql.logging.info(msg)
 
         return sql, args
@@ -537,9 +537,9 @@ class Sql:
         generate sql for delete statement
         :return:
         """
-        table = self._table.name
-        conditions, args = self._generate_conditions()
-        base = 'DELETE FROM {table}{conditions}'
+        table=self._table.name
+        conditions, args=self._generate_conditions()
+        base='DELETE FROM {table}{conditions}'
 
         return base.format(
             table=table,
@@ -555,7 +555,7 @@ class Sql:
         :param table_name: name of table to be resolved
         :return: subclass of DynamicModel or None
         """
-        sub_models = models.DynamicModel.__subclasses__()
+        sub_models=models.DynamicModel.__subclasses__()
         for model in sub_models:
             if model.__name__ == table_name:
                 return model
@@ -568,7 +568,7 @@ class Sql:
         :return:
         """
         if self._raw_append_values is None:
-            self._raw_append_values = []
+            self._raw_append_values=[]
         return Sql.__sep__.join(map(
             lambda x: x[0],
             self._raw_append_values
@@ -588,20 +588,20 @@ class Sql:
         :return: sql_str, (args,)
         """
         if self._sql is None:
-            raw_extra_sql, raw_extra_args = self.extra_raw
-            sql, args = {
+            raw_extra_sql, raw_extra_args=self.extra_raw
+            sql, args={
                 'SELECT': self._generate_select,
                 'INSERT': self._generate_insert,
                 'UPDATE': self._generate_update,
                 'DELETE': self._generate_delete,
             }[self._type]()
-            self._sql = (
+            self._sql=(
                 sql + raw_extra_sql + ';',
                 args + raw_extra_args,
             )
 
             if bigsql.config['VERBOSE_SQL_GENERATION']:
-                msg = 'Generated: {} {}'.format(*self._sql)
+                msg='Generated: {} {}'.format(*self._sql)
                 bigsql.logging.info(msg)
         return self._sql
 
@@ -614,24 +614,24 @@ class Sql:
         :return:
         """
         if self._raw_append_values is None:
-            self._raw_append_values = []
+            self._raw_append_values=[]
         if args is None:
-            args = []
+            args=[]
         self._raw_append_values.append([
             sql, args
         ])
         return self
 
     def _generate_models(self, *results):
-        Model = self._resolve_model(self._table.name)
-        model_init_kwargs = [
+        Model=self._resolve_model(self._table.name)
+        model_init_kwargs=[
             {
                 col.column_name: val
                 for col, val in zip(self._table.columns, item)
             }
             for item in results
         ]
-        self._result = [
+        self._result=[
             Sql.session.add(
                 Model(**kwargs),
                 initialized=True
@@ -650,7 +650,7 @@ class Sql:
         """
         :return: first element of results
         """
-        res = self.all()
+        res=self.all()
         return res[0] if len(res) != 0 else None
 
     def all(self):
@@ -672,11 +672,7 @@ class Sql:
         """
         self.gen()
 
-        if bigsql.config['VERBOSE_SQL_EXECUTION']:
-            msg = 'Executing: {} {}'.format(*self._sql)
-            bigsql.logging.info(msg)
-
-        raw_result = Sql.session.execute_raw(*self._sql)
+        raw_result=Sql.session.execute_raw(*self._sql)
 
         if self._type in ('SELECT', 'INSERT'):
             if self._type == 'INSERT':
@@ -708,9 +704,9 @@ class Sql:
                 'Expression Type error'
             )
 
-        self._conditions = list()
+        self._conditions=list()
         self._add_condition('AND', *specified_conditions, **conditions)
-        self._conditions[0].operator = 'WHERE'
+        self._conditions[0].operator='WHERE'
         return self
 
     def INTO(self, table):
@@ -727,7 +723,7 @@ class Sql:
                 'Table already set for INSERT expression'
             )
 
-        self._table = Table(table)
+        self._table=Table(table)
         return self
 
     def FROM(self, table):
@@ -738,7 +734,7 @@ class Sql:
             raise self.ExpressionError(
                 'Expression Type error'
             )
-        self._table = Table(table)
+        self._table=Table(table)
         return self
 
     def JOIN(self, *tables):
@@ -750,7 +746,7 @@ class Sql:
                 'Expression Type error'
             )
         if self._joins is None:
-            self._joins = list()
+            self._joins=list()
         for table in tables:
             self._joins.append(
                 JoinedTable(self._table, table)
@@ -778,7 +774,7 @@ class Sql:
             raise self.ExpressionError(
                 'Invalid Expression Type'
             )
-        self._updates_values = kwargs
+        self._updates_values=kwargs
         return self
 
     def GROUPBY(self, column_name):
@@ -794,7 +790,7 @@ class Sql:
             raise self.ExpressionError(
                 'Invalid Experssion Type'
             )
-        self._group_by_column = column_name
+        self._group_by_column=column_name
         return self
 
     def ORDERBY(self, column_name):
@@ -810,9 +806,9 @@ class Sql:
             raise self.ExpressionError(
                 'Invalid Experssion Type'
             )
-        self._order_by_column = column_name
+        self._order_by_column=column_name
         return self
-    
+
     def ONDUPUPDATE(self):
         if self._type != 'INSERT':
             raise self.ExpressionError(
@@ -823,9 +819,9 @@ class Sql:
 
     @staticmethod
     def DELETE(table):
-        e = Sql()
-        e._type = 'DELETE'
-        e._table = Table(table)
+        e=Sql()
+        e._type='DELETE'
+        e._table=Table(table)
         return e
 
     @staticmethod
@@ -835,9 +831,9 @@ class Sql:
         :param table:
         :return:
         """
-        e = Sql()
-        e._type = 'UPDATE'
-        e._table = Table(table)
+        e=Sql()
+        e._type='UPDATE'
+        e._table=Table(table)
         return e
 
     @staticmethod
@@ -845,9 +841,9 @@ class Sql:
         """
         First method that should be called in INSERT expression.
         """
-        e = Sql()
-        e._type = 'INSERT'
-        e._insert_values = values
+        e=Sql()
+        e._type='INSERT'
+        e._insert_values=values
         return e
 
     @staticmethod
@@ -859,9 +855,9 @@ class Sql:
         This will throw and error if an expression type has already
         been specified.
         """
-        e = Sql()
-        e._type = 'SELECT'
-        e._columns = [c for c in columns]
+        e=Sql()
+        e._type='SELECT'
+        e._columns=[c for c in columns]
         return e
 
     @staticmethod
@@ -873,15 +869,15 @@ class Sql:
 
     @staticmethod
     def UNION(*expressions):
-        gens = [
+        gens=[
             e.gen()
             for e in expressions
         ]
-        sql = ' UNION '.join(map(
+        sql=' UNION '.join(map(
             lambda e: e[0],
             gens
         ))
-        args = list(sum(map(
+        args=list(sum(map(
             lambda e: e[1],
             gens
         )))
