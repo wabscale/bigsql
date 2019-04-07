@@ -70,10 +70,10 @@ class DynamicModel(object):
         self.__table__ = Sql.Table(self.__name__)
         self.__column_info__ = self.__table__.columns
         self.__relationships__ = self.__table__.relationships
-        self.__lower_relationships__ = list(map(
-            lambda rel: rel.lower(),
-            self.__relationships__
-        ))
+        self.__lower_relationships__ = {
+            rel.lower(): rel
+            for rel in self.__relationships__
+        }
         self.__column_lot__ = {
             col.column_name: col
             for col in self.__column_info__
@@ -135,12 +135,12 @@ class DynamicModel(object):
             if item in self.__lower_relationships__:
                 return self.Relationship(
                     self,
-                    item[0].upper() + item[1:]
+                    self.__lower_relationships__[item]
                 )
             elif item.endswith('s') and item[:-1] in self.__lower_relationships__:
                 return self.Relationship(
                     self,
-                    item[0].upper() + item[1:-1]
+                    self.__lower_relationships__[item[:-1]]
                 )
         raise AttributeError('Attribute not found {}'.format(item))
 
