@@ -135,7 +135,7 @@ class Connection(object):
 
     def execute(self, sql, args=None):
         if bigsql.config['VERBOSE_SQL_EXECUTION']:
-            msg='Executing: {} {}'.format(sql, args)
+            msg='Executing: {} {} {}'.format(sql, args, self.name)
             bigsql.logging.info(msg)
         self.cursor.execute(sql, args)
         return self.cursor
