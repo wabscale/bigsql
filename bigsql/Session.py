@@ -1,29 +1,30 @@
-from . import bigsql
-from . import models
-from . import err
 from dataclasses import dataclass
+
 import pymysql.cursors
-import warnings
+
+from . import bigsql
+from . import err
+from . import models
 
 
 @dataclass
 class TrackedObject(object):
     o: object
-    initialized: bool = False
+    initialized: bool=False
 
 
 class ObjectTracker(object):
     def __init__(self):
-        self.__objects__ = {}
+        self.objects={}
 
     def __iter__(self):
-        for table in self.__objects__:
-            for tracked_o in self.__objects__[table].values():
+        for table in self.objects:
+            for tracked_o in self.objects[table].values():
                 yield tracked_o
 
     def __contains__(self, o):
         table_key, object_key=self.make_key(o)
-        return table_key not in self.__objects__ or object_key not in self.__objects__[table_key]
+        return table_key not in self.objects or object_key not in self.objects[table_key]
 
     def add(self, o, initialized=False):
         """
@@ -35,23 +36,23 @@ class ObjectTracker(object):
         :param initialized:
         :return:
         """
-        table_key, object_key = self.make_key(o)
-        if table_key not in self.__objects__:
-            self.__objects__[table_key] = dict()
-        if object_key not in self.__objects__[table_key]:
-            self.__objects__[table_key][object_key] = TrackedObject(
+        table_key, object_key=self.make_key(o)
+        if table_key not in self.objects:
+            self.objects[table_key]=dict()
+        if object_key not in self.objects[table_key]:
+            self.objects[table_key][object_key]=TrackedObject(
                 o=o,
                 initialized=initialized
             )
-        return self.__objects__[table_key][object_key].o
+        return self.objects[table_key][object_key].o
 
     def clear(self):
-        self.__objects__.clear()
+        self.objects.clear()
 
     @staticmethod
     def make_key(o):
-        table_key = o.__table__.name
-        object_key = tuple(
+        table_key=o.__table__.name
+        object_key=tuple(
             getattr(o, col.column_name)
             for col in o.__primary_keys__
         )
@@ -62,9 +63,10 @@ class Connection(object):
     """
     Simple wrapper for pymysql connections
     """
+
     def __init__(self, name):
-        self.name = name
-        self.conn = pymysql.connect(
+        self.name=name
+        self.conn=pymysql.connect(
             host=bigsql.config['host'],
             password=bigsql.config['pword'],
             user=bigsql.config['user'],
@@ -72,13 +74,16 @@ class Connection(object):
             charset="utf8mb4",
             cursorclass=pymysql.cursors.Cursor,
         )
-        self.cursor = self.conn.cursor()
+        self.cursor=self.conn.cursor()
 
     def commit_transaction(self):
         """
         commit transaction
         :return:
         """
+        if bigsql.config['VERBOSE_SQL_EXECUTION']:
+            msg='Executing: COMMIT;'
+            bigsql.logging.info(msg)
         self.conn.commit()
 
     def rollback_transaction(self):
@@ -87,12 +92,16 @@ class Connection(object):
 
         :return:
         """
+        if bigsql.config['VERBOSE_SQL_EXECUTION']:
+            msg='Executing: ROLLBACK;'
+            bigsql.logging.info(msg)
         self.conn.rollback()
 
     def execute(self, sql, args=None):
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            self.cursor.execute(sql, args)
+        if bigsql.config['VERBOSE_SQL_EXECUTION']:
+            msg='Executing: {} {}'.format(sql, args)
+            bigsql.logging.info(msg)
+        self.cursor.execute(sql, args)
         return self.cursor
 
     def close(self):
@@ -109,11 +118,12 @@ class Session(object):
     self.add_conn : connection for handling the creation of new entries
     self.raw_conn : connection for handing raw execution
     """
-    def __init__(self):
-        self.object_tracker = ObjectTracker()
 
-        self.orm_conn = Connection('mod')
-        self.raw_conn = Connection('raw')
+    def __init__(self):
+        self.object_tracker=ObjectTracker()
+
+        self.orm_conn=Connection('mod')
+        self.raw_conn=Connection('raw')
 
     def execute_raw(self, sql, args=None):
         """
@@ -123,7 +133,7 @@ class Session(object):
         :param tuple args: iterable arguments
         :return:
         """
-        r = self.raw_conn.execute(sql, args).fetchall()
+        r=self.raw_conn.execute(sql, args).fetchall()
         self.raw_conn.commit_transaction()
         return r
 
@@ -154,13 +164,10 @@ class Session(object):
 
         :return:
         """
-        for o in self.object_tracker:
-            sql = o.o.__update_sql__ if o.initialized else o.o.__insert_sql__
-            self.orm_conn.execute(*sql)
-            o.initialized = True
         self.orm_conn.commit_transaction()
         self.object_tracker.clear()
 
-
     def rollback(self):
+        for o in self.object_tracker:
+            o.__rollback__()
         self.orm_conn.rollback_transaction()
