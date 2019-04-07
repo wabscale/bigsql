@@ -159,9 +159,9 @@ class Connection(object):
         if bigsql.config['VERBOSE_SQL_EXECUTION']:
             msg='{} Executing: COMMIT;'.format(self.name)
             bigsql.logging.info(msg)
-        # self.conn.commit()
+        self.conn.commit()
         self.cursor.execute('COMMIT;')
-        self.reset_cursor()
+        # self.reset_cursor()
         self.start_transaction()
 
     def rollback_transaction(self):
@@ -174,7 +174,7 @@ class Connection(object):
             msg='{} Executing: ROLLBACK;'.format(self.name)
             bigsql.logging.info(msg)
         self.conn.rollback()
-        self.reset_cursor()
+        # self.reset_cursor()
         self.start_transaction()
 
     def execute(self, sql, args=None):
@@ -259,5 +259,6 @@ class Session(object):
 
     def rollback(self):
         for o in self.object_tracker:
-            o.o.__rollback__()
+            o.__rollback__()
+        self.object_tracker.clear()
         self.orm_conn.rollback_transaction()

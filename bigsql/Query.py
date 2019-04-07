@@ -23,7 +23,7 @@ class Query(object):
         :param values: key value dict for obj
         :return: new instance of table model
         """
-        return Sql.Sql.INSERT(**values).INTO(self.table_name).do(raw=True)
+        return Sql.Sql.INSERT(**values).INTO(self.table_name).do(raw=False)
 
     def delete(self, **values):
         """
