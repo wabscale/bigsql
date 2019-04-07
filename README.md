@@ -8,7 +8,7 @@ To use the static models with bsql, all you need to do define your models same a
 ```python
 from bigsql import *
 
-class Test(DynamicModel):
+class Test(StaticModel):
     id = StaticColumn(Integer, primary_key=True, auto_increment=True)
     a_string = StaticColumn(Varchar(128), references="Person.username")
     date = StaticColumn(DateTime)
@@ -42,7 +42,7 @@ Here is how you can query, modify then commit statically defined models
 from bigsql import *
 from datetime import datetime
 
-class Test(DynamicModel):
+class Test(StaticModel):
     id = StaticColumn(Integer, primary_key=True, auto_increment=True)
     a_string = StaticColumn(Varchar(128), references="Person.username")
     date = StaticColumn(DateTime)
