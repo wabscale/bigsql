@@ -1,0 +1,10 @@
+version: '3'
+
+services:
+  test:
+    build: .
+
+  db:
+    image: mariadb:10.4
+    volumnes:
+      - ./tests/init.sql:/docker-entrypoint-initdb.d/init.sql
