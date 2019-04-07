@@ -15,15 +15,16 @@ class Query(object):
         """
         return Sql.Sql.SELECTFROM(self.table_name).WHERE(**conditions)
 
-    # def new(self, **values):
-    #     """
-    #     creates and inserts new element of type self.table_name
-    #
-    #     :param values: key value dict for obj
-    #     :return: new instance of table model
-    #     """
-    #     return Sql.Sql.INSERT(**values).INTO(self.table_name).do()
-    #
+    def new(self, **values):
+        """
+        creates and inserts new element of type self.table_name
+
+        :param values: key value dict for obj
+        :return: new instance of table model
+        """
+        return Sql.Sql.INSERT(**values).INTO(self.table_name).do(raw=True)
+
+
     # def delete(self, **values):
     #     """
     #     deletes object from dateabase

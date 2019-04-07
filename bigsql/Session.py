@@ -66,6 +66,11 @@ class Connection(object):
 
     def __init__(self, name):
         self.name=name
+        self.conn=None
+        self.cursor=None
+        self.connect()
+
+    def connect(self):
         self.conn=pymysql.connect(
             host=bigsql.config['host'],
             password=bigsql.config['pword'],
@@ -73,8 +78,34 @@ class Connection(object):
             db=bigsql.config['db'],
             charset="utf8mb4",
             cursorclass=pymysql.cursors.Cursor,
+            autocommit=False
         )
+        self.conn.autocommit(False)
         self.cursor=self.conn.cursor()
+        self.cursor.execute('SET autocommit = off;')
+        self.begin_transaction()
+
+    def close(self):
+        self.cursor.close()
+        self.conn.close()
+        self.cursor=None
+        self.conn=None
+
+    def reset_cursor(self):
+        self.cursor.close()
+        self.cursor=None
+        self.cursor=self.conn.cursor()
+        self.cursor.execute('SET autocommit = off;')
+
+    def begin_transaction(self):
+        """
+        begin transaction
+        :return:
+        """
+        if bigsql.config['VERBOSE_SQL_EXECUTION']:
+            msg='Executing: START TRANSACTION; {}'.format(self.name)
+            bigsql.logging.info(msg)
+        self.cursor.execute('START TRANSACTION ;')
 
     def commit_transaction(self):
         """
@@ -82,9 +113,12 @@ class Connection(object):
         :return:
         """
         if bigsql.config['VERBOSE_SQL_EXECUTION']:
-            msg='Executing: COMMIT;'
+            msg='Executing: COMMIT; {}'.format(self.name)
             bigsql.logging.info(msg)
-        self.conn.commit()
+        # self.conn.commit()
+        self.cursor.execute('COMMIT;')
+        self.reset_cursor()
+        self.begin_transaction()
 
     def rollback_transaction(self):
         """
@@ -96,6 +130,8 @@ class Connection(object):
             msg='Executing: ROLLBACK;'
             bigsql.logging.info(msg)
         self.conn.rollback()
+        self.reset_cursor()
+        self.begin_transaction()
 
     def execute(self, sql, args=None):
         if bigsql.config['VERBOSE_SQL_EXECUTION']:
@@ -103,9 +139,6 @@ class Connection(object):
             bigsql.logging.info(msg)
         self.cursor.execute(sql, args)
         return self.cursor
-
-    def close(self):
-        self.conn.close()
 
 
 class Session(object):
@@ -169,5 +202,5 @@ class Session(object):
 
     def rollback(self):
         for o in self.object_tracker:
-            o.__rollback__()
+            o.o.__rollback__()
         self.orm_conn.rollback_transaction()

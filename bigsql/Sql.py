@@ -646,14 +646,14 @@ class Sql:
         ]
         return self._result
 
-    def first(self):
+    def first(self, raw=False):
         """
         :return: first element of results
         """
-        res=self.all()
+        res=self.all(raw)
         return res[0] if len(res) != 0 else None
 
-    def all(self):
+    def all(self, raw=False):
         """
         This method should generate the sql, run it,
         then hand back the result (if expression type
@@ -672,24 +672,30 @@ class Sql:
         """
         self.gen()
 
-        raw_result=Sql.session.execute_raw(*self._sql)
+        raw_result={
+            False: Sql.session.execute_raw,
+            True: Sql.session.orm_conn.execute
+        }[raw](*self._sql)
 
         if self._type in ('SELECT', 'INSERT'):
             if self._type == 'INSERT':
                 sql=self._generate_insert_select()
-                raw_result=Sql.session.execute_raw(*sql)
+                raw_result={
+                    False: Sql.session.execute_raw,
+                    True: Sql.session.orm_conn.execute
+                }[raw](*sql)
 
             result=self._generate_models(*raw_result)
 
         return result
 
-    def do(self):
+    def do(self, raw=True):
         """
         This is a cleaner name for insert queries to call to execute.
 
         :return: calls self.all()
         """
-        return self.first()
+        return self.first(raw)
 
     def WHERE(self, *specified_conditions, **conditions):
         """

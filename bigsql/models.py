@@ -313,7 +313,7 @@ class TempModel(DynamicModel):
             '{{\n{}\n}}'.format(',\n'.join(
                 '    {:12}: {}'.format(
                     col.column_name,
-                    str(self.__dict__[col.column_name])
+                    str(self.__current_state__[col.column_name])
                 )
                 for col in self.__column_info__
             ))
