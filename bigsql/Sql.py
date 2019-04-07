@@ -73,6 +73,8 @@ class JoinedTable(Table):
     The sql generation is lazy
     """
 
+    __cached_attrs__=dict()
+
     @dataclass
     class _JoinAttribute:
         name: str
@@ -91,18 +93,29 @@ class JoinedTable(Table):
                  'AND TABLE_SCHEMA=DATABASE();'
 
     def __init__(self, current_table, ref_table):
+        joinid='{}.{}'.format(current_table, ref_table)
         super(self.__class__, self).__init__(ref_table)
-        self.current_table=current_table.name
-        self.join_attr=None
-        self.sql=None
+        if joinid not in Sql.__cache__['joined_tables']:
+            self.current_table=current_table.name
+            self.join_attr=None
+            self.sql=None
+            Sql.__cache__['joined_tables'][joinid]=self
+        else:
+            self.join_attr=Sql.__cache__['joined_tables'][joinid].join_attr
+            self.sql=Sql.__cache__['joined_tables'][joinid].sql
+
 
     @staticmethod
     def resolve_attribute(current_table, foreign_table):
-        raw=Sql.execute_raw(
+        attrid='{}.{}'.format(current_table, foreign_table)
+        if attrid in JoinedTable.__cached_attrs__:
+            return JoinedTable.__cached_attrs__[attrid]
+        raw=Sql.session.execute_raw(
             JoinedTable.ref_info_sql,
             (current_table, foreign_table,)
         )
-        return None if len(raw) == 0 else raw[0]
+        JoinedTable.__cached_attrs__[attrid] = None if len(raw) == 0 else raw[0]
+        return JoinedTable.__cached_attrs__[attrid]
 
     def _gen(self):
         """
@@ -159,6 +172,7 @@ class Sql:
 
     __cache__={
         'tables': {},
+        'joined_tables': {}
     }
     session=None
 

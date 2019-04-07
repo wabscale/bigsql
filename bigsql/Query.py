@@ -24,12 +24,11 @@ class Query(object):
         """
         return Sql.Sql.INSERT(**values).INTO(self.table_name).do(raw=True)
 
+    def delete(self, **values):
+        """
+        deletes object from dateabase
 
-    # def delete(self, **values):
-    #     """
-    #     deletes object from dateabase
-    #
-    #     :param values:
-    #     :return:
-    #     """
-    #     return Sql.Sql.DELETE(self.table_name).WHERE(**values).do()
+        :param values:
+        :return:
+        """
+        return Sql.Sql.DELETE(self.table_name).WHERE(**values).do()

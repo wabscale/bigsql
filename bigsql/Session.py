@@ -47,6 +47,17 @@ class ObjectTracker(object):
             self.tree[table_key][object_key]=o
         return self.tree[table_key][object_key]
 
+    def delete(self, o):
+        """
+        Object needs to be removed from the object tracker, then
+        the delete sql statement needs to be executed.
+        """
+        table_key, object_key=self.make_key(o)
+        if table_key not in self.tree:
+            self.tree[table_key]=dict()
+        if object_key not in self.tree[table_key]:
+            del self.tree[table_key][object_key]
+
     def clear(self):
         """
         Clears all object from session.
@@ -228,6 +239,14 @@ class Session(object):
             )
 
         return self.object_tracker.add(o)
+
+    def delete(self, o):
+        """
+        Removes object from object tracker (if is was being tracked)
+        then executes its __delete_sql__ property.
+        """
+        self.object_tracker.delete(o)
+        self.orm_conn.execute(o.__delete_sql__)
 
     def commit(self):
         """
