@@ -6,13 +6,20 @@ from scanf import scanf
 
 @dataclass
 class DataType:
+    """
+    Base datatype object. All defined types should inherit
+    from this object.
+
+    All this object should need is a name class variable.
+    """
     name: str=None
 
-    def __init__(self, length):
-        self.name='{}({})'.format(
-            self.name,
-            length
-        )
+    def __init__(self, length=None):
+        if length is not None:
+            self.name='{}({})'.format(
+                self.name,
+                length
+            )
 
 
 class Integer(DataType):
@@ -28,23 +35,21 @@ class DateTime(DataType):
 
 
 class TimeStamp(DataType):
-    name: str = 'TIMESTAMP'
+    name: str='TIMESTAMP'
 
 
 class Varchar(DataType):
     name: str='VARCHAR'
 
 
-class Column:
+class StaticColumn:
+    """
+    StaticColumn holds information about user defined columns.
+    This object should be used to define columns in statically defined models.
+
+    This object is used to generate the column creation sql when db.create_all() is called.
+    """
     column_name: str=None
-    data_type: DataType=None
-    primary_key: bool=False
-    table_name: str=None
-    auto_increment: bool=False
-    nullable: bool=None
-    references: str=None
-    on_delete: str=None
-    unique: bool=False
 
     def __init__(self, data_type, **kwargs):
         self.data_type=data_type
@@ -109,9 +114,9 @@ class Column:
 
 
 @dataclass
-class StaticColumn(Column):
+class DynamicColumn(StaticColumn):
     def __init__(self, table_name, column_name, data_type, primary_key):
-        super(StaticColumn, self).__init__(
+        super(DynamicColumn, self).__init__(
             self.resolve_type(data_type),
             primary_key=primary_key == 'PRI'
         )

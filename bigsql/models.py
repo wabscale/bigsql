@@ -100,6 +100,10 @@ class DynamicModel(object):
         )
 
     def __setattr__(self, key, value):
+        """
+        Overriding this method is necessary because the models state needs to
+        be update in the database if a column attribute is modified.
+        """
         if 'primary_keys' in self.__dict__ and key in self.__dict__['primary_keys']:
             raise self.__dict__['ModelError']('Unable to modify primary key value')
         if '__current_state__' in self.__dict__ and key in self.__current_state__:
@@ -107,11 +111,18 @@ class DynamicModel(object):
             Sql.Sql.session.orm_conn.execute(*self.__update_sql__)
 
         self.__dict__[key] = value
-        # setattr(self, key, value)
 
     def __getattr__(self, item):
         """
-        this is where relationships will be lazily resolved.
+        Relationship resolution happens here. If item is the name
+        of a table that has a reference to the current model, a self.Relationship
+        obejct will be returned.
+
+        Alternatively, if item is the name of a column for this model, its current
+        value will be read out of self.__current_state__ and returned. Be warned
+        that if the column attribute has not been set, it is likely that you will
+        get a self.EmptyValue object returned.
+
         :return:
         """
         if item == '__name__':  # boy this is a messy fix
@@ -122,53 +133,38 @@ class DynamicModel(object):
 
         if self.__lower_relationships__ is not None:
             if item in self.__lower_relationships__:
-                self.__dict__[item] = self.Relationship(
+                return self.Relationship(
                     self,
                     item[0].upper() + item[1:]
                 )
-                return self.__dict__[item]
             elif item.endswith('s') and item[:-1] in self.__lower_relationships__:
-                self.__dict__[item] = self.Relationship(
+                return self.Relationship(
                     self,
                     item[0].upper() + item[1:-1]
                 )
-                return self.__dict__[item]
-        # return super(DynamicModel, self).__getattribute__(item)
+        raise AttributeError('Attribute not found {}'.format(item))
 
     def __rollback__(self):
-        self.__current_state__ = deepcopy(self.__original_state__)
-
-    def __generate_relationships__(self):
         """
+        This rolls back the models state to the __original_state__ dictionary.
+        __rollback__ will be called on all tracked models in the db.session if
+        db.session.rollback is called.
         :return:
         """
-        for table_name in self.__relationships__:
-            self.__setattr__(
-                table_name,
-                self.Relationship(self, table_name)
-            )
-
-    def __set_column_value__(self, column_name, value):
-        col = self.__column_lot__[column_name]
-        if value is not None:
-            if col.data_type == 'timestamp' and type(value) == str:
-                value = utils.strptime(value)
-            elif col.data_type in ('int', 'tinyint'):
-                value = int(value)
-        self.__current_state__[column_name] = value
+        self.__current_state__ = deepcopy(self.__original_state__)
 
     def __set_model_state__(self, **kwargs):
         for col in self.__column_info__:
-            self.__set_column_value__(col.column_name, self.EmptyValue())
+            self.__current_state__[col.column_name]=self.EmptyValue()
         for col, val in kwargs.items():
-            self.__set_column_value__(col, val)
+            self.__current_state__[col]=val
 
     @staticmethod
     def __table_sql__(class_type):
         columns = [
             value.set_name(item, class_type.__name__)
             for item, value in class_type.__dict__.items()
-            if isinstance(value, types.Column)
+            if isinstance(value, types.StaticColumn)
         ]
         if len(columns) == 0:
             return None
@@ -231,7 +227,7 @@ class DynamicModel(object):
         yield from (
             value.set_name(item, value.__class__.__name__)
             for item, value in self.__class__.__dict__.items()
-            if isinstance(value, types.Column)
+            if isinstance(value, types.StaticColumn)
         )
 
     @property
@@ -345,4 +341,4 @@ class StaticModel(DynamicModel):
             self.__class__.__name__
         ).do()
         for key, value in m.__current_state__.items():
-            super(StaticModel, self).__set_column_value__(key, value)
+            self.__current_state__[key] = value

@@ -38,7 +38,7 @@ class Table:
         :returns: list of columns for self.ref_table
         """
         return [
-            types.StaticColumn(self.name, *r)
+            types.DynamicColumn(self.name, *r)
             for r in Sql.session.execute_raw(
                 self.column_info_sql,
                 (self.name,)
@@ -633,14 +633,12 @@ class Sql:
         ]
         self._result=[
             Sql.session.add(
-                Model(**kwargs),
-                initialized=True
+                Model(**kwargs)
             )
             for kwargs in model_init_kwargs
         ] if Model is not models.TempModel else [
             Sql.session.add(
-                Model(self._table.name, **kwargs),
-                initialized=True
+                Model(self._table.name, **kwargs)
             )
             for kwargs in model_init_kwargs
         ]

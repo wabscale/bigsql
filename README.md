@@ -9,9 +9,9 @@ To use the static models with bsql, all you need to do define your models same a
 from bigsql import *
 
 class Test(DynamicModel):
-    id = Column(Integer, primary_key=True, auto_increment=True)
-    a_string = Column(Varchar(128), references="Person.username")
-    date = Column(DateTime)
+    id = StaticColumn(Integer, primary_key=True, auto_increment=True)
+    a_string = StaticColumn(Varchar(128), references="Person.username")
+    date = StaticColumn(DateTime)
 
 db = big_SQL(
     user='root',
@@ -43,9 +43,9 @@ from bigsql import *
 from datetime import datetime
 
 class Test(DynamicModel):
-    id = Column(Integer, primary_key=True, auto_increment=True)
-    a_string = Column(Varchar(128), references="Person.username")
-    date = Column(DateTime)
+    id = StaticColumn(Integer, primary_key=True, auto_increment=True)
+    a_string = StaticColumn(Varchar(128), references="Person.username")
+    date = StaticColumn(DateTime)
 
 db = big_SQL(
     user='root',
