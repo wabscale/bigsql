@@ -246,7 +246,7 @@ class Session(object):
         then executes its __delete_sql__ property.
         """
         self.object_tracker.delete(o)
-        self.orm_conn.execute(o.__delete_sql__)
+        self.orm_conn.execute(*o.__delete_sql__)
 
     def commit(self):
         """
