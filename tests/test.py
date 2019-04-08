@@ -70,3 +70,6 @@ def test():
         db.session.commit()
     except big_ERROR:
         db.session.rollback()
+
+if __name__ == "__main__":
+    test()

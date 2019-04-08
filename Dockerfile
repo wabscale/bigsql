@@ -8,7 +8,7 @@ RUN pip3 install -r requirements.txt && pip3 install coverage
 
 COPY . .
 
-RUN cp tests/test.py tests.py
+RUN cp tests/test.py test.py
 
 CMD echo "waiting for db" \
   && while ! mysqladmin ping -h "db" -P "3306" --silent; do sleep 1; done \

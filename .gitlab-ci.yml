@@ -1,0 +1,15 @@
+stages:
+  - test
+
+test_job:
+  stage: test
+  tags:
+    - server-tag
+  script:
+    - docker-compose build --no-cache
+    - docker-compose up -d db
+    - docker-compose run test
+    - docker-compose kill
+  only:
+    refs:
+      - master
