@@ -1,12 +1,17 @@
 FROM python:3.7-alpine
 
-COPY . /opt/bigsql
-WORKDIR /opt/bigsql
-RUN pip3 install .
+RUN apk add --update --no-cache mysql-client
 
-COPY ./tests /opt/tests
 WORKDIR /opt/tests/
+COPY ./requirements.txt ./requirements.txt
+RUN pip3 install -r requirements.txt && pip3 install coverage
 
-RUN pip3 install coverage
+COPY . .
 
-CMD coverage run test.py &> /dev/null && coverage report
+RUN cp tests/test.py tests.py
+
+CMD echo "waiting for db" \
+  && while ! mysqladmin ping -h "db" -P "3306" --silent; do sleep 1; done \
+  && sleep 3 \
+  && coverage run test.py \
+  && coverage report
