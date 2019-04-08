@@ -1,3 +1,8 @@
+[![pipeline status](https://gitlab.com/b1g_J/bigsql/badges/master/pipeline.svg)](https://gitlab.com/b1g_J/bigsql/commits/master)
+
+
+[![coverage report](https://gitlab.com/b1g_J/bigsql/badges/master/coverage.svg)](https://gitlab.com/b1g_J/bigsql/commits/master)
+
 # big_SQL
 big_SQL is an ORM features dynamic model generation, with on the fly relationship detection and resolution. 
 It uses a high level custom sql generator in its backend.
