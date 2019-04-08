@@ -227,42 +227,42 @@ class Sql:
         # UPDATE
         self._updates_values=None
 
-    def __iter__(self):
-        """
-        Purely convenience.
+    # def __iter__(self):
+    #     """
+    #     Purely convenience.
+    #
+    #     With this you can iterate through SELECT results
+    #     """
+    #     if self._type != 'SELECT':
+    #         raise self.ExpressionError(
+    #             'Iteration not possible'
+    #         )
+    #     yield from self()
+    #
+    # def __call__(self, *args, **kwargs):
+    #     return self.all()
+    #
+    # def __len__(self):
+    #     """
+    #     Length of results
+    #     """
+    #     if self._result is None:
+    #         self()
+    #     return len(self._result)
 
-        With this you can iterate through SELECT results
-        """
-        if self._type != 'SELECT':
-            raise self.ExpressionError(
-                'Iteration not possible'
-            )
-        yield from self()
-
-    def __call__(self, *args, **kwargs):
-        return self.all()
-
-    def __len__(self):
-        """
-        Length of results
-        """
-        if self._result is None:
-            self()
-        return len(self._result)
-
-    def __enter__(self):
-        """
-        __enter__ called in with statement. The intended behavior is that you
-        make your expression in the with, then use as to set it to a variable,
-        and it will execute the expression, and set the result to the variable.
-        """
-        return self.all()
-
-    def __del__(self, *_):
-        pass
-
-    def __hash__(self):
-        return hash(str(self.gen()))
+    # def __enter__(self):
+    #     """
+    #     __enter__ called in with statement. The intended behavior is that you
+    #     make your expression in the with, then use as to set it to a variable,
+    #     and it will execute the expression, and set the result to the variable.
+    #     """
+    #     return self.all()
+    #
+    # def __del__(self, *_):
+    #     pass
+    #
+    # def __hash__(self):
+    #     return hash(str(self.gen()))
 
     def _resolve_attribute(self, attr_name, skip_curr=False):
         """
@@ -338,30 +338,6 @@ class Sql:
                     value=value,
                 )
             )
-
-    def _generate_attributes(self):
-        """
-        Will fill self._attributes with self._Attributes for
-        self._table and joined tables.
-        """
-        column_info_sql='SELECT COLUMN_NAME ' \
-                        'FROM INFORMATION_SCHEMA.COLUMNS ' \
-                        'WHERE TABLE_NAME=%s ' \
-                        'AND TABLE_SCHEMA=DATABASE();'
-        joined_tables=list(map(
-            lambda jt: jt.ref_table,
-            self._joins
-        )) if self._joins is not None else []
-        all_tables=joined_tables + [self._table]
-        for table_name in all_tables:
-            current_table_attrs=Sql.execute_raw(column_info_sql, table_name)
-            for attr in map(lambda x: x[0], current_table_attrs):
-                self._attrs.append(
-                    self._Attribute(
-                        table=table_name,
-                        name=attr,
-                    )
-                )
 
     def _generate_conditions(self):
         """
