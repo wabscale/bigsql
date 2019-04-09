@@ -99,6 +99,15 @@ class DynamicModel(object):
             ))
         )
 
+    def __eq__(self, other):
+        return other.__table__.name == self.__table__.name and all(
+            self.__getattr__(pri) == other.__getattr__(pri)
+            for pri in self.__primary_keys__.keys()
+        )
+
+    def __ne__(self, other):
+        return not (self == other)
+
     def __setattr__(self, key, value):
         """
         Overriding this method is necessary because the models state needs to
