@@ -18,7 +18,7 @@ def test():
     db=big_SQL(
         user='root',
         pword='password',
-        host='127.0.0.1',
+        host='db',
         db='TS',
     )
 
