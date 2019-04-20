@@ -118,6 +118,14 @@ class Connection(object):
         self.cursor=self.conn.cursor()
         self.start_transaction()
 
+    def reconnect(self):
+        """
+        resets connection to database
+        :return:
+        """
+        self.conn.close()
+        self.connect()
+
     def close(self):
         """
         Closes cursor, then connection object.
@@ -190,7 +198,11 @@ class Connection(object):
         if bigsql.config['VERBOSE_SQL_EXECUTION']:
             msg='{} Executing: {} {}'.format(self.name, sql, args)
             bigsql.logging.info(msg)
-        self.cursor.execute(sql, args)
+        try:
+            self.cursor.execute(sql, args)
+        except pymysql.err.InterfaceError:
+            self.reconnect()
+            self.cursor.execute(sql, args)
         return self.cursor
 
 
