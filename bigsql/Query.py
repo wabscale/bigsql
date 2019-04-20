@@ -7,6 +7,13 @@ class Query(object):
     def __init__(self, table_name):
         self.table_name = table_name if isinstance(table_name, str) else table_name.__name__
 
+    def all(self):
+        """
+        Return all models for table
+        :return:
+        """
+        return Sql.Sql.SELECTFROM(self.table_name).all()
+
     def find(self, **conditions):
         """
         similar to sqlalchemy's Sql.filter_by function
