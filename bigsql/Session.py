@@ -154,7 +154,7 @@ class Connection(object):
         :return:
         """
         if bigsql.config['VERBOSE_SQL_EXECUTION']:
-            msg='{} Executing: START TRANSACTION;'.format(self.name)
+            msg='START TRANSACTION;'
             bigsql.logging.info(msg)
         self.cursor.execute('START TRANSACTION ;')
 
@@ -164,9 +164,6 @@ class Connection(object):
 
         :return:
         """
-        if bigsql.config['VERBOSE_SQL_EXECUTION']:
-            msg='{} Executing: COMMIT;'.format(self.name)
-            bigsql.logging.info(msg)
         self.conn.commit()
         self.cursor.execute('COMMIT;')
         # self.reset_cursor()
@@ -179,7 +176,7 @@ class Connection(object):
         :return:
         """
         if bigsql.config['VERBOSE_SQL_EXECUTION']:
-            msg='{} Executing: ROLLBACK;'.format(self.name)
+            msg='ROLLBACK;'
             bigsql.logging.info(msg)
         self.conn.rollback()
         # self.reset_cursor()
@@ -196,7 +193,7 @@ class Connection(object):
         :return: self.cursor
         """
         if bigsql.config['VERBOSE_SQL_EXECUTION']:
-            msg='{} Executing: {} {}'.format(self.name, sql, args)
+            msg='{} {}'.format(sql, args)
             bigsql.logging.info(msg)
         try:
             self.cursor.execute(sql, args)
