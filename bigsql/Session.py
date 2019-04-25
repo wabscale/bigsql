@@ -153,9 +153,9 @@ class Connection(object):
 
         :return:
         """
-        if bigsql.config['VERBOSE_SQL_EXECUTION']:
-            msg='START TRANSACTION;'
-            bigsql.logging.info(msg)
+        # if bigsql.config['VERBOSE_SQL_EXECUTION']:
+        #     msg='START TRANSACTION;'
+        #     bigsql.logging.info(msg)
         self.cursor.execute('START TRANSACTION ;')
 
     def commit_transaction(self):
