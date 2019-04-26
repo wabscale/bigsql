@@ -40,3 +40,11 @@ class Query(object):
         :return:
         """
         return Sql.Sql.DELETE(self.table_name).WHERE(**values).do()
+
+    def __getattr__(self, item):
+        """
+        Gives back raw sql object
+
+        :return:
+        """
+        return getattr(Sql.Sql.SELECTFROM(self.table_name), item)
