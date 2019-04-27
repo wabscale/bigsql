@@ -639,7 +639,7 @@ class Sql:
         :return: first element of results
         """
         res=self.all(raw)
-        return res[0] if len(res) != 0 else None
+        return res[0] if res is not None and len(res) != 0 else None
 
     def all(self, raw=True):
         """
