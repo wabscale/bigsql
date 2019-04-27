@@ -99,6 +99,9 @@ class DynamicModel(object):
             ))
         )
 
+    def __hash__(self):
+        return hash(str(self.__current_state__))
+
     def __eq__(self, other):
         return other.__table__.name == self.__table__.name and all(
             self.__getattr__(pri) == other.__getattr__(pri)

@@ -95,7 +95,6 @@ class Connection(object):
     def __init__(self, name):
         self.name=name
         self.conn=None
-        self.cursor=None
         self.connect()
 
     def connect(self):
@@ -114,9 +113,6 @@ class Connection(object):
             cursorclass=pymysql.cursors.Cursor,
             autocommit=False
         )
-        self.conn.autocommit(False)
-        self.cursor=self.conn.cursor()
-        self.start_transaction()
 
     def reconnect(self):
         """
@@ -124,39 +120,16 @@ class Connection(object):
         :return:
         """
         self.conn.close()
+        self.conn=None
         self.connect()
 
     def close(self):
         """
-        Closes cursor, then connection object.
+        Closes connection object.
         :return:
         """
-        self.cursor.close()
         self.conn.close()
-        self.cursor=None
         self.conn=None
-
-    def reset_cursor(self):
-        """
-        Resets the current self.cursor.
-
-        :return:
-        """
-        self.cursor.close()
-        self.cursor=None
-        self.cursor=self.conn.cursor()
-        self.cursor.execute('SET autocommit = off;')
-
-    def start_transaction(self):
-        """
-        starts transaction
-
-        :return:
-        """
-        # if bigsql.config['VERBOSE_SQL_EXECUTION']:
-        #     msg='START TRANSACTION;'
-        #     bigsql.logging.info(msg)
-        self.cursor.execute('START TRANSACTION ;')
 
     def commit_transaction(self):
         """
@@ -164,10 +137,8 @@ class Connection(object):
 
         :return:
         """
-        self.conn.commit()
-        self.cursor.execute('COMMIT;')
-        # self.reset_cursor()
-        self.start_transaction()
+        if self.conn is not None and self.conn.open:
+            self.conn.commit()
 
     def rollback_transaction(self):
         """
@@ -179,8 +150,23 @@ class Connection(object):
             msg='ROLLBACK;'
             bigsql.logging.info(msg)
         self.conn.rollback()
-        # self.reset_cursor()
-        self.start_transaction()
+
+    def _execute(self, sql, args=None):
+        """
+        Internal execute funtion. Should not be used by the user
+
+        :param sql:
+        :param args:
+        :return:
+        """
+        try:
+            with self.conn.cursor() as cursor:
+                cursor.execute(sql, args)
+                res=cursor.fetchall()
+        finally:
+                cursor.close()
+        return res
+
 
     def execute(self, sql, args=None):
         """
@@ -195,12 +181,18 @@ class Connection(object):
         if bigsql.config['VERBOSE_SQL_EXECUTION']:
             msg='{} {}'.format(sql, args)
             bigsql.logging.info(msg)
+
+        if self.conn is None or not self.conn.open:
+            self.connect()
+
         try:
-            self.cursor.execute(sql, args)
-        except pymysql.err.InterfaceError:
+            res=self._execute(sql, args)
+        except pymysql.err.InterfaceError or AttributeError:
+            print('Error in execution, attempting reconnect...')
             self.reconnect()
-            self.cursor.execute(sql, args)
-        return self.cursor
+            res=self._execute(sql, args)
+
+        return res
 
 
 class Session(object):
@@ -228,9 +220,15 @@ class Session(object):
         :param tuple args: iterable arguments
         :return:
         """
-        r=self.raw_conn.execute(sql, args).fetchall()
+        r=self.raw_conn.execute(sql, args)
         self.raw_conn.commit_transaction()
         return r
+
+    def clear(self):
+        """
+        Clears all tracked objects from session
+        """
+        self.object_tracker.clear()
 
     def add(self, o):
         """
