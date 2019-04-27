@@ -517,7 +517,7 @@ class Sql:
                 str(self._table.primary_keys[0])
             )
         if bigsql.config['VERBOSE_SQL_EXECUTION']:
-            msg='Executing: {} {}'.format(sql, args)
+            msg='{} {}'.format(sql, args)
             bigsql.logging.info(msg)
 
         return sql, args
