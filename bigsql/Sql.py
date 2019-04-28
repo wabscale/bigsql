@@ -273,15 +273,15 @@ class Sql:
         """
         if attr_name == '*':
             return self._table.name
-        if not skip_curr:
-            for column in self._table.columns:
-                if column.column_name == attr_name:
-                    return self._table.name
         if self._joins is not None:
             for joined_table in self._joins:
                 for column in joined_table.columns:
                     if column.column_name == attr_name:
                         return joined_table.name
+        if not skip_curr:
+            for column in self._table.columns:
+                if column.column_name == attr_name:
+                    return self._table.name
         raise self.ExpressionError(
             'Unable to resolve column name {}'.format(attr_name)
         )
