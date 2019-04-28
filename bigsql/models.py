@@ -59,7 +59,7 @@ class DynamicModel(object):
                     )
                 ).all()
 
-            yield from self._objs
+            yield from set(self._objs)
 
     def __init__(self, **kwargs):
         """
